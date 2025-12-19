@@ -1,0 +1,9 @@
+go 1.24.10
+
+use (
+	./proto
+	./mongo-service
+	./cassandra-service
+	./neo4j-service
+	./test-service
+)

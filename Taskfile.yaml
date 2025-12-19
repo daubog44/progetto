@@ -1,0 +1,27 @@
+version: '3'
+
+tasks:
+  up:
+    desc: Start infrastructure
+    cmds:
+      - docker compose up -d
+
+  down:
+    desc: Stop infrastructure
+    cmds:
+      - docker compose down
+
+  dev:
+    desc: Start Tilt development environment
+    cmds:
+      - tilt up
+
+  proto:
+    desc: Generate protobuf code
+    cmds:
+      - buf generate
+
+  test:
+    desc: Run tests for all services
+    cmds:
+      - go test -v ./test-service/...
