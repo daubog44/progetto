@@ -53,27 +53,26 @@ services:
   mongo-service:
     image: mongo-service
     build:
-      context: ./mongo-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: microservices/mongo-service/Dockerfile
       target: dev
     container_name: mongo-service
     depends_on:
       - mongodb
     environment:
-      APP_MONGO_URI: "mongodb://admin:password@mongodb:27017"
+      - APP_MONGO_URI=mongodb://mongodb:27017
     networks:
       - microservices-net
 
   cassandra-service:
     image: cassandra-service
     build:
-      context: ./cassandra-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: microservices/cassandra-service/Dockerfile
       target: dev
     container_name: cassandra-service
     depends_on:
-      cassandra:
-        condition: service_healthy
+      - cassandra
     environment:
       APP_CASSANDRA_HOST: "cassandra"
     networks:
@@ -82,16 +81,18 @@ services:
   neo4j-service:
     image: neo4j-service
     build:
-      context: ./neo4j-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: microservices/neo4j-service/Dockerfile
       target: dev
     container_name: neo4j-service
+    ports:
+      - "50053:50051"
     depends_on:
       - neo4j
     environment:
-      APP_NEO4J_URI: "bolt://neo4j:7687"
-      APP_NEO4J_USER: "neo4j"
-      APP_NEO4J_PASSWORD: "password"
+      - APP_NEO4J_URI=bolt://neo4j:7687
+      - APP_NEO4J_USER=neo4j
+      - APP_NEO4J_PASSWORD=password
     networks:
       - microservices-net
 

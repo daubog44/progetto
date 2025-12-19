@@ -3,9 +3,9 @@ go 1.25
 toolchain go1.25.0
 
 use (
-	./cassandra-service
-	./mongo-service
-	./neo4j-service
+	./microservices/cassandra-service
+	./microservices/mongo-service
+	./microservices/neo4j-service
 	./shared/proto
-	./test-service
+	./microservices/test-service
 )

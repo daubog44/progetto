@@ -1,80 +1,92 @@
-# Go Microservices Data Layer Project
+# 🌐 Go Social Network: Modern Microservices Architecture
 
-A robust starting point for a Go-based microservices architecture focused on data persistence. This project includes multiple data layer services with integrated hot-reload development via Tilt.
+Benvenuti in **Go Social Network**, un progetto progettato per dimostrare e implementare un'architettura a microservizi allo stato dell'arte. L'obiettivo principale è costruire una piattaforma social scalabile, performante e manutenibile, utilizzando gli standard più moderni dell'ecosistema Go e del mondo cloud-native.
 
-## 🚀 Technologies
+## 🎯 Visione del Progetto
 
-### Core
-- **Language**: [Go (1.24)](https://go.dev/)
-- **Orchestration**: [Docker Compose](https://docs.docker.com/compose/) & [Tilt](https://tilt.dev/)
+Vogliamo realizzare un social network che sfrutti al massimo la separazione delle responsabilità (Separation of Concerns). Ogni modulo è un microservizio isolato che comunica tramite protocolli ultra-veloci come **gRPC**, garantendo prestazioni elevate e type-safety end-to-end.
 
-### Data Stores
-- **MongoDB**: Document database (port 27017)
-- **Cassandra**: Wide-column store (port 9042)
-- **Neo4j**: Graph database (port 7474/7687)
-
-## 📁 Project Structure
-
-```text
-├── cassandra-service/    # Cassandra integration service
-├── mongo-service/        # MongoDB integration service
-├── neo4j-service/        # Neo4j integration service
-├── test-service/         # Integration tests using Testcontainers
-├── proto/                # Shared Protobuf definitions
-├── docker-compose.yml    # Infrastructure services
-├── Tiltfile              # Development environment orchestration
-├── Taskfile.yaml         # Useful commands (similar to Makefile)
-└── go.work               # Go workspace configuration
-```
-
-## 🛠 Getting Started
-
-### Prerequisites
-- [Docker](https://www.docker.com/) & Docker Compose
-- [Go 1.24+](https://go.dev/dl/)
-- [Tilt](https://tilt.dev/install.html)
-- [Task](https://taskfile.dev/install/) (referred to as `go-task` here)
-
-### 1. Initialize Infrastructure
-Start the backend services:
-```bash
-go-task up
-# or: docker compose up -d
-```
-
-### 2. Generate Protobuf Code
-If you modify `.proto` files, regenerate the Go code:
-```bash
-go-task proto
-# or: cd proto && buf generate
-```
-
-### 3. Launch Development Environment
-Tilt provides a unified dashboard for all your Go services with **Hot Reload** enabled. Any change you make in the code will be instantly synced and recompiled inside the containers using Tilt's built-in `live_update`.
-```bash
-go-task dev
-# or: tilt up
-```
-Open the Tilt UI (usually at http://localhost:10350) to see your services running.
-
-### 4. Running Tests
-We use [Testcontainers](https://golang.testcontainers.org/) for real integration testing.
-```bash
-go-task test
-# or: go test -v ./test-service/...
-```
-
-## 👨‍💻 Development Workflow
-
-### Adding a New Service
-1. Create a new directory for the service.
-2. Initialize the module: `go mod init github.com/username/progetto/your-service`.
-3. Add the service to `go.work` in the root directory.
-4. Create a `Dockerfile` using the multi-stage pattern.
-5. Add the service to `Tiltfile` using `docker_build` with `live_update` and `restart_process()`.
-
-### Environment Variables
-Each service uses a `.env` file and [koanf](https://github.com/knadh/koanf) for configuration. Environment variables should be prefixed with `APP_` (e.g., `APP_MONGO_URI` becomes `mongo.uri` in the code).
+### Punti di Forza:
+- **Scalabilità Orizzontale**: Ogni servizio può scalare indipendentemente.
+- **Polyglot Persistence**: Usiamo il database giusto per ogni compito (Mongo per documenti, Cassandra per time-series/feed, Neo4j per i grafi delle relazioni).
+- **Developer Experience (DX)**: Sviluppo locale fluido grazie a **Tilt** con hot-reload istantaneo.
+- **Standard Moderni**: Utilizzo di **Buf v2** per gRPC e **Testcontainers** per test d'integrazione affidabili.
 
 ---
-Created with ❤️ for high-performance data architectures.
+
+## 📁 Architettura e Struttura
+
+Il progetto è organizzato come un **monorepo** per facilitare la gestione del codice condiviso e dei contratti gRPC.
+
+```text
+├── microservices/
+│   ├── mongo-service/     # Gestione profili e metadati (MongoDB)
+│   ├── cassandra-service/ # Gestione Feed e attività (Cassandra)
+│   ├── neo4j-service/     # Gestione relazioni tra utenti (Neo4j)
+│   └── test-service/      # Integration tests using Testcontainers
+├── shared/
+│   └── proto/             # Contratti gRPC (Buf v2) e codice generato
+├── tutorial/              # Documentazione interna e guide all'apprendimento
+├── docker-compose.yml     # Infrastruttura di base (DB, Broker, etc.)
+├── Tiltfile               # Orchestrazione dello sviluppo locale
+└── Taskfile.yaml          # Automazione dei task comuni
+```
+
+---
+
+## 🚀 Tecnologie Core
+
+- **Language**: [Go (1.25)](https://go.dev/)
+- **Communication**: [gRPC](https://grpc.io/) & [Protobuf](https://protobuf.dev/) gestiti via [Buf v2](https://buf.build/)
+- **Orchestration**: [Docker Compose](https://docs.docker.com/compose/) & [Tilt](https://tilt.dev/)
+- **Data Layer**: MongoDB, Cassandra, Neo4j
+- **Testing**: [Testcontainers](https://golang.testcontainers.org/) per test reali in Go
+
+---
+
+## 🛠 Iniziare lo Sviluppo
+
+### 1. Prerequisiti
+Assicurati di avere installato:
+- **Docker** & Docker Compose
+- **Go 1.25+**
+- **Tilt** (per l'ambiente di sviluppo)
+- **Task** (esegui `go-task` invece di `make`)
+
+### 2. Setup Rapido
+Clona il repository e avvia l'infrastruttura di base (Database):
+```bash
+go-task up
+```
+
+### 3. Generazione API (Protobuf)
+Utilizziamo **Buf v2** con **Managed Mode**. Per rigenerare il codice client/server gRPC:
+```bash
+go-task proto
+```
+
+### 4. Sviluppo con Tilt (Hot Reload)
+Avvia l'intero ecosistema di microservizi in un unico comando. Tilt monitorerà i tuoi file e aggiornerà i container in tempo reale:
+```bash
+go-task dev
+```
+🔗 Accedi alla dashboard di Tilt su: [http://localhost:10350](http://localhost:10350)
+
+---
+
+## 👨‍💻 Workflow per i Contributori
+
+### Aggiungere un Nuovo Microservizio
+Per mantenere la qualità e la coerenza del progetto, segui questi step:
+1. **Directory**: Crea una cartella in `services/`.
+2. **Modulo Go**: Esegui `go mod init` all'interno.
+3. **Workspace**: Aggiungi il nuovo path a `go.work`.
+4. **Infra**: Aggiungi eventuali dipendenze (DB) a `docker-compose.yml`.
+5. **Dockerfile**: Crea un Dockerfile multi-stage basato sugli esempi esistenti.
+6. **Tilt**: Registra il servizio nel `Tiltfile` usando `docker_build` e `restart_container()`.
+
+### Best Practices gRPC
+Tutte le modifiche ai contratti devono avvenire in `shared/proto/`. Consulta la nostra [Guida Workflow gRPC](file:///home/daubog44/Scrivania/dev/progetto/tutorial/grpc-workflow.md) per i dettagli sull'uso di `Unimplemented...Server`.
+
+---
+Realizzato con ⚡ e ❤️ per il futuro dello sviluppo distribuito.

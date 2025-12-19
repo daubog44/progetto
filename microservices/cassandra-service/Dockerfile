@@ -2,9 +2,9 @@
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
 COPY shared/ /shared/
-COPY mongo-service/go.mod mongo-service/go.sum ./
+COPY microservices/cassandra-service/go.mod microservices/cassandra-service/go.sum ./
 RUN go mod download
-COPY mongo-service/ .
+COPY microservices/cassandra-service/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server main.go
 
 # Runtime
@@ -18,8 +18,8 @@ ENTRYPOINT ["/server"]
 FROM golang:1.25-alpine AS dev
 WORKDIR /app
 COPY shared/ /shared/
-COPY mongo-service/go.mod mongo-service/go.sum ./
+COPY microservices/cassandra-service/go.mod microservices/cassandra-service/go.sum ./
 RUN go mod download
-COPY mongo-service/ .
+COPY microservices/cassandra-service/ .
 RUN go build -o /server main.go
 ENTRYPOINT ["/server"]

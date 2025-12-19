@@ -2,9 +2,9 @@
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
 COPY shared/ /shared/
-COPY neo4j-service/go.mod neo4j-service/go.sum ./
+COPY microservices/mongo-service/go.mod microservices/mongo-service/go.sum ./
 RUN go mod download
-COPY neo4j-service/ .
+COPY microservices/mongo-service/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server main.go
 
 # Runtime
@@ -18,8 +18,8 @@ ENTRYPOINT ["/server"]
 FROM golang:1.25-alpine AS dev
 WORKDIR /app
 COPY shared/ /shared/
-COPY neo4j-service/go.mod neo4j-service/go.sum ./
+COPY microservices/mongo-service/go.mod microservices/mongo-service/go.sum ./
 RUN go mod download
-COPY neo4j-service/ .
+COPY microservices/mongo-service/ .
 RUN go build -o /server main.go
 ENTRYPOINT ["/server"]
