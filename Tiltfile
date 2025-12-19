@@ -13,6 +13,7 @@ docker_build(
     live_update=[
         sync('./microservices/mongo-service', '/app'),
         sync('./shared', '/shared'),
+        run('go build -o /server main.go'),
         restart_container()
     ]
 )
@@ -25,6 +26,7 @@ docker_build(
     live_update=[
         sync('./microservices/cassandra-service', '/app'),
         sync('./shared', '/shared'),
+        run('go build -o /server main.go'),
         restart_container()
     ]
 )
@@ -37,6 +39,7 @@ docker_build(
     live_update=[
         sync('./microservices/neo4j-service', '/app'),
         sync('./shared', '/shared'),
+        run('go build -o /server main.go'),
         restart_container()
     ]
 )
