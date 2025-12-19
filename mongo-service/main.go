@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
@@ -31,7 +32,7 @@ func (s *server) CreateUser(ctx context.Context, req *datav1.CreateUserRequest) 
 	collection := s.db.Database("progetto").Collection("users")
 
 	user := bson.M{
-		"firebase_uid": req.GetFirebaseUid(),
+		"clerk_id":     req.GetClerkId(),
 		"email":        req.GetEmail(),
 		"display_name": req.GetDisplayName(),
 		"created_at":   time.Now(),
@@ -43,8 +44,13 @@ func (s *server) CreateUser(ctx context.Context, req *datav1.CreateUserRequest) 
 		return nil, err
 	}
 
+	id := ""
+	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
+		id = oid.Hex()
+	}
+
 	return &datav1.CreateUserResponse{
-		Id:      res.InsertedID.(string), // Note: Mongo ObjectID by default, might need conversion
+		Id:      id,
 		Success: true,
 	}, nil
 }

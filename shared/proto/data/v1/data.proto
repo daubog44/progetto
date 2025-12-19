@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package data.v1;
 
-option go_package = "github.com/username/progetto/proto/gen/go/data/v1;datav1";
+option go_package = "github.com/username/progetto/shared/proto/gen/go/data/v1;datav1";
 
 service DataService {
   rpc GetData(GetDataRequest) returns (GetDataResponse);

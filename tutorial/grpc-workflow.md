@@ -5,7 +5,7 @@ Questa guida spiega come gestire le comunicazioni tra microservizi utilizzando g
 ## 1. Architettura del Workflow
 
 Nel nostro progetto, i microservizi comunicano tramite gRPC seguendo questo schema:
-1.  **Contratto**: Definito in `proto/`.
+1.  **Contratto**: Definito in `shared/proto/`.
 2.  **Generazione**: Il codice Go viene generato centralmente.
 3.  **Server**: Un servizio (es. `mongo-service`) implementa le interfacce.
 4.  **Client**: Altri servizi (es. `test-service`) consumano le API.
@@ -14,7 +14,7 @@ Nel nostro progetto, i microservizi comunicano tramite gRPC seguendo questo sche
 
 ## 2. Modifica del file .proto
 
-Tutte le definizioni dei servizi si trovano in `proto/data/v1/data.proto`.
+Tutte le definizioni dei servizi si trovano in `shared/proto/data/v1/data.proto`.
 
 ### Esempio: Aggiungere un nuovo RPC
 Se vuoi aggiungere un metodo per eliminare un utente:
@@ -38,7 +38,7 @@ message DeleteUserResponse {
 
 ## 3. Installazione CLI (`buf`)
 
-Il progetto utilizza **buf** per gestire i file protobuf in modo moderno.
+Il progetto utilizza **buf v2** per gestire i file protobuf in modo moderno e scalabile.
 
 ### Come installarlo (Linux/macOS):
 ```bash
@@ -58,13 +58,13 @@ chmod +x "${BIN}/buf"
 
 ## 4. Generazione Codice con Taskfile
 
-Abbiamo automatizzato la generazione del codice tramite il `Taskfile.yaml` alla radice del progetto.
+Abbiamo automatizzato la generazione del codice tramite il `Taskfile.yaml`. Con **Buf v2**, utilizziamo la **Managed Mode** per gestire automaticamente i package Go, semplificando la manutenzione.
 
 Ogni volta che modifichi un file `.proto`, esegui:
 ```bash
 task proto
 ```
-Questo comando esegue internamente `buf generate` nella cartella `proto/`, aggiornando il codice Go in `proto/gen/go/`.
+Questo comando esegue `buf generate` nella cartella `shared/proto/`. Grazie ai **remote plugins**, la generazione è sempre coerente tra host e container. Il codice generato viene salvato in `shared/proto/gen/go/`.
 
 ---
 

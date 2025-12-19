@@ -6,6 +6,6 @@ use (
 	./cassandra-service
 	./mongo-service
 	./neo4j-service
-	./proto
+	./shared/proto
 	./test-service
 )

@@ -30,4 +30,4 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace github.com/username/progetto/proto => ../proto
+replace github.com/username/progetto/proto => ../shared/proto

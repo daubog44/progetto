@@ -1,9 +1,10 @@
 # Builder
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
-COPY go.mod go.sum ./
+COPY shared/ /shared/
+COPY cassandra-service/go.mod cassandra-service/go.sum ./
 RUN go mod download
-COPY . .
+COPY cassandra-service/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server main.go
 
 # Runtime
@@ -16,7 +17,9 @@ ENTRYPOINT ["/server"]
 # Dev
 FROM golang:1.25-alpine AS dev
 WORKDIR /app
-COPY . .
+COPY shared/ /shared/
+COPY cassandra-service/go.mod cassandra-service/go.sum ./
 RUN go mod download
+COPY cassandra-service/ .
 RUN go build -o /server main.go
 ENTRYPOINT ["/server"]
