@@ -13,6 +13,8 @@ docker_build(
     target='dev',
     live_update=[
         sync('./mongo-service', '/app'),
+        run('go build -o /server main.go'),
+        restart_container()
     ]
 )
 
@@ -24,6 +26,8 @@ docker_build(
     target='dev',
     live_update=[
         sync('./cassandra-service', '/app'),
+        run('go build -o /server main.go'),
+        restart_container()
     ]
 )
 
@@ -35,5 +39,7 @@ docker_build(
     target='dev',
     live_update=[
         sync('./neo4j-service', '/app'),
+        run('go build -o /server main.go'),
+        restart_container()
     ]
 )

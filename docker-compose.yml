@@ -1,88 +1,5 @@
-version: "3.9"
-
 services:
-  # --- Infrastructure ---
-
-  # Postgres
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: microservice_db
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - microservices-net
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user -d microservice_db" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # Kafka (KRaft mode)
-  kafka:
-    image: confluentinc/cp-kafka:7.8.0
-    container_name: kafka
-    hostname: kafka
-    ports:
-      - "9092:9092"
-      - "9093:9093"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_LISTENERS: 'PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093,EXTERNAL://0.0.0.0:29092'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      CLUSTER_ID: 'Mk3OUY_STP62ppCbc1sFdQ' # Random UUID
-    networks:
-      - microservices-net
-    healthcheck:
-      test: nc -z localhost 9092 || exit 1
-      interval: 5s
-      timeout: 10s
-      retries: 5
-
-  # Kafka UI
-  kafka-ui:
-    image: provectus/kafka-ui:latest
-    container_name: backend_kafka_ui
-    depends_on:
-      - kafka
-    ports:
-      - "8080:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-    networks:
-      - microservices-net
-
-  # MinIO (S3 Compatible)
-  minio:
-    image: minio/minio:latest
-    container_name: backend_minio
-    restart: always
-    ports:
-      - "9000:9000" # API Port
-      - "9001:9001" # Console UI Port
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - microservices-net
+  # --- Databases ---
 
   # Cassandra
   cassandra:
@@ -97,25 +14,11 @@ services:
       - cassandradata:/var/lib/cassandra
     networks:
       - microservices-net
-    # Cassandra takes a while to start, healthcheck is important
     healthcheck:
       test: [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
       interval: 30s
       timeout: 10s
       retries: 5
-
-  # Meilisearch
-  meilisearch:
-    image: getmeili/meilisearch:v1.10
-    container_name: meilisearch
-    ports:
-      - "7700:7700"
-    environment:
-      - MEILI_MASTER_KEY=masterKey
-    volumes:
-      - meilidata:/meili_data
-    networks:
-      - microservices-net
 
   # MongoDB
   mongodb:
@@ -145,74 +48,55 @@ services:
     networks:
       - microservices-net
 
-  # --- Observability ---
+  # --- Microservices (Orchestrated by Tilt) ---
 
-  # Prometheus
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-    volumes:
-      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - microservices-net
-
-  # Loki
-  loki:
-    image: grafana/loki:3.0.0
-    container_name: loki
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    networks:
-      - microservices-net
-
-  # Promtail (Logs collector)
-  promtail:
-    image: grafana/promtail:3.0.0
-    container_name: promtail
-    volumes:
-      - /var/log:/var/log
-      - ./infra/promtail.yml:/etc/promtail/config.yml
-    command: -config.file=/etc/promtail/config.yml
-    networks:
-      - microservices-net
-
-  # Grafana
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
+  mongo-service:
+    image: mongo-service
+    build:
+      context: ./mongo-service
+      dockerfile: Dockerfile
+      target: dev
+    container_name: mongo-service
+    depends_on:
+      - mongodb
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafanadata:/var/lib/grafana
+      APP_MONGO_URI: "mongodb://admin:password@mongodb:27017"
     networks:
       - microservices-net
 
-  # OTEL Collector
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: otel-collector
-    command: [ "--config=/etc/otel-collector-config.yaml" ]
-    volumes:
-      - ./infra/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports:
-      - "4317:4317" # OTLP gRPC
-      - "4318:4318" # OTLP HTTP
+  cassandra-service:
+    image: cassandra-service
+    build:
+      context: ./cassandra-service
+      dockerfile: Dockerfile
+      target: dev
+    container_name: cassandra-service
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    environment:
+      APP_CASSANDRA_HOST: "cassandra"
+    networks:
+      - microservices-net
+
+  neo4j-service:
+    image: neo4j-service
+    build:
+      context: ./neo4j-service
+      dockerfile: Dockerfile
+      target: dev
+    container_name: neo4j-service
+    depends_on:
+      - neo4j
+    environment:
+      APP_NEO4J_URI: "bolt://neo4j:7687"
+      APP_NEO4J_USER: "neo4j"
+      APP_NEO4J_PASSWORD: "password"
     networks:
       - microservices-net
 
 volumes:
-  pgdata:
   cassandradata:
-  meilidata:
-  grafanadata:
-  minio_data:
   mongodata:
   neo4jdata:
 
