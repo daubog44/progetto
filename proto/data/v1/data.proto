@@ -6,6 +6,7 @@ option go_package = "github.com/username/progetto/proto/gen/go/data/v1;datav1";
 
 service DataService {
   rpc GetData(GetDataRequest) returns (GetDataResponse);
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
 }
 
 message GetDataRequest {
@@ -14,4 +15,15 @@ message GetDataRequest {
 
 message GetDataResponse {
   string data = 1;
+}
+
+message CreateUserRequest {
+  string clerk_id = 1;
+  string email = 2;
+  string display_name = 3;
+}
+
+message CreateUserResponse {
+  string id = 1;
+  bool success = 2;
 }
