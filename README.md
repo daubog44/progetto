@@ -16,7 +16,9 @@ Vibely mira a creare uno spazio dove gli appassionati di cultura possono connett
 - **Scalabilità Orizzontale**: Ogni servizio scala indipendentemente.
 - **Polyglot Persistence**: Database specifico per ogni workload (Mongo, Cassandra, Neo4j).
 - **Hot-Reload**: Sviluppo fluido con **Tilt**.
-- **Type-Safety**: gRPC e **Buf v2** per contratti rigorosi.
+- **Type-Safety**: gRPC e **Buf v2** per contratti rigorosi tra servizi.
+- **Security First**: Immagini **Distroless** e architettura Zero Trust.
+- **Performance**: Elaborazione ultra-rapida con **Go** e database distribuiti.
 
 ---
 
@@ -59,13 +61,22 @@ go-task dev
 
 ---
 
-## 📚 Documentazione e Tutorial
+## 📚 Documentazione Tecnica
 
 Consulta le nostre guide dettagliate per comprendere il funzionamento interno:
 
-- [Workflow gRPC & Buf v2](docs/tutorial/grpc-workflow.md) - Come generare codice dai contratti.
-- [Architettura Event-Driven](docs/tutorial/event-driven-architecture.md) - Integrazione tra gRPC e Kafka.
-- [Descrizione Piattaforma](docs/tech/description.md) - Visione e obiettivi di Vibely.
+### ⚙️ Architettura & Strategia
+- [Visione e Obiettivi](docs/tech/project.md) - Descrizione generale di Vibely.
+- [Workflow & Tracing](docs/tech/workflows.md) - Il viaggio delle richieste tra i servizi.
+- [Sicurezza & Performance](docs/tech/security-performance-resilience.md) - Distroless, Go e Resilienza.
+- [Analisi Architetturale](docs/tech/architecture-analysis.md) - Deep dive nei componenti.
+- [Database Schema](docs/tech/database-schema.md) - Modelli dati Polyglot.
+
+### 📖 Tutorial & Workflow
+- [Aggiunta Microservizio](docs/tutorial/add-microservice.md) - Guida e script di automazione.
+- [Workflow gRPC & Buf v2](docs/tutorial/grpc-workflow.md) - Generazione codice dai contratti.
+- [Event-Driven Architecture](docs/tutorial/event-driven-architecture.md) - Integrazione gRPC + Kafka.
+- [Frontend Workflow](docs/tutorial/frontend-workflow.md) - Sviluppo UI e integrazione API.
 
 ---
 Realizzato con ⚡ e ❤️ per Vibely.

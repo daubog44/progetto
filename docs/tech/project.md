@@ -1,34 +1,64 @@
-# Progetto
+# 🌐 Vibely: Piattaforma Culturale
 
-Analisi Funzionale (Cosa fa il sistema)
+Vibely è un ecosistema digitale progettato per connettere persone attraverso la passione per **Libri, Film, Serie TV e Musica**. Non è un semplice social network, ma un "hub culurale" dove l'utente può catalogare i propri progressi, scoprire nuovi talenti e discutere in modo sicuro.
 
-- Permette alle persone di connettersi tra loro usando i libri, film e serie tv, tramite post, recensioni e feed personalizzati.
-- Consente agli utenti di creare e gestire il proprio profilo, seguire altri utenti e inviare messaggi.
-- Supporta la pubblicazione di contenuti e media in modo rapido, garantendo che le operazioni sembrino istantanee all’utente.
-- Offre una chat in tempo reale per comunicare con amici o altri utenti.
-- Fornisce funzioni di ricerca per trovare libri, film e serie tv post o utenti in modo facile e veloce.
-- Gestisce l’eliminazione degli account utente nel rispetto della privacy.
-- Invia notifiche e aggiornamenti personalizzati sul feed degli utenti.
-- permette agli utenti di segnalare altri utenti per comportamenti non rispettosi
+## 🎯 Visione
+In un mondo di informazioni frammentate, Vibely aggrega contenuti multimediali in un'unica esperienza fluida, supportata da un'architettura a microservizi pensata per la scalabilità e le prestazioni estreme.
 
-## Analisi Non Funzionale (Come funziona il sistema)
+## ✨ Caratteristiche Chiave
 
-- È sempre disponibile e funziona anche se alcuni componenti si bloccano o devono essere aggiornati.
-- Può crescere o ridursi automaticamente in base al numero di utenti e al traffico senza rallentamenti.
-- Garantisce la sicurezza dei dati e delle comunicazioni attraverso sistemi di controllo e verifica.
-- Tiene traccia e controlla il funzionamento interno per intervenire subito in caso di problemi.
-- Mantiene i dati più richiesti in memoria per rispondere velocemente alle richieste.
-- Aggiorna in automatico il sistema senza bisogno di interventi manuali.
-- Rispetta le norme sulla privacy e protegge i dati degli utenti.
+### 📚 Catalogazione Multimediale
+- **Archivio Personale**: Traccia cosa hai letto, visto o ascoltato.
+- **Whitelist/Blacklist**: Filtra i contenuti in base ai tuoi gusti culturali.
 
-## Stakeholder (Chi usa o gestisce il sistema)
+### 💬 Community & Social
+- **Chat Spoiler-Safe**: Sistema di protezione avanzato che nasconde i messaggi se non hai ancora completato l'opera.
+- **Relazioni di Valore**: Segui utenti con gusti simili ai tuoi grazie all'analisi del grafo di interesse (Neo4j).
 
-- **Utenti finali:** Persone appassionate che usano la piattaforma per leggere, condividere e socializzare.
-- **Sviluppatori e tecnici:** Chi costruisce, aggiorna e mantiene la piattaforma.
-- **Responsabili della sicurezza:** Chi assicura la protezione dei dati e delle comunicazioni.
-- **Operatori di sistema:** Chi monitora e assicura che il sistema funzioni sempre bene.
-- **Product manager:** Chi gestisce le funzionalità e decide le priorità di sviluppo.
-- **Fornitori tecnologici:** Provider dei servizi cloud e delle tecnologie usate (es. storage, messaggistica).
-- **Utenti molto seguiti:** Influencer che necessitano di accorgimenti speciali per gestire molti follower.
-- **Autorità della privacy:** Garantiscono che i dati siano trattati nel rispetto delle leggi.
-- **Moderatori:** 2 tipi di moderazione: **Moderazione Automatica** fatta dall’AI e da filtri intelligenti per rilevare in tempo reale contenuti vietati, linguaggi offensivi, spoiler non autorizzati e spam o link sospetti; **Moderatori umani** che gestiscono i contenuti bloccati o dubbiosi dall’AI, ma anche segnalazioni degli utenti, recensioni fasulle, violazione del regolamento community
+### 🚀 Spazio Emergenti
+- **Discovery**: Una sezione dedicata esclusivamente ad autori, registi e musicisti indipendenti per dare visibilità ai nuovi talenti.
+
+## 🛠 Stack Tecnologico & Architettura
+Vibely utilizza le migliori tecnologie per ogni componente. Per approfondimenti sui pilastri tecnici, consulta il documento su [Sicurezza, Performance e Resilienza](security-performance-resilience.md).
+
+- **Backend**: Go (Golang) con gRPC e Kafka.
+- **Databases**:
+  - **Postgres**: Identity e Master of Record.
+  - **MongoDB**: Metadati opere e Post flessibili.
+  - **Neo4j**: Grafi di interesse e Relazioni.
+  - **Cassandra**: Feed, Timeline e Messaggistica massiva.
+  - **Redis**: Real-time Pub/Sub e Caching.
+
+## 📈 Roadmap
+1. **MVP**: Lancio dei cataloghi base e community di genere.
+2. **Phase 2**: Implementazione chat spoiler-safe e algoritmo di raccomandazione.
+3. **Phase 3**: Integrazione diretta con API di streaming e store digitali.
+
+# 🎯 Vision & Goals
+
+Vibely è un ecosistema digitale d'avanguardia progettato per connettere le persone attraverso la passione per **Libri, Film, Serie TV e Musica**. Non è un semplice social network, ma un "hub culturale" dove l'utente può catalogare i propri progressi, scoprire nuovi talenti e discutere in modo sicuro.
+
+## 🚀 Analisi di Sistema
+
+### Obiettivi Funzionali
+- **Connessione Culturale**: Permettere agli utenti di connettersi tramite post, recensioni e feed personalizzati basati su interessi comuni.
+- **Gestione Profilo & Social**: Creazione profili, sistema di follow e messaggistica in tempo reale.
+- **User Experience Fluida**: Pubblicazione di contenuti ottimizzata per percepire operazioni istantanee.
+- **Ricerca Avanzata**: Strumenti di discovery rapidi per opere, utenti e post.
+- **Sicurezza & Privacy**: Gestione dell'eliminazione degli account e moderazione (AI + umana) per contenuti offensivi o spoiler.
+
+### Obiettivi Non Funzionali
+- **Alta Disponibilità**: Funzionamento continuo anche durante aggiornamenti o guasti parziali.
+- **Scalabilità Elastica**: Capacità di adattarsi al traffico in tempo reale.
+- **Integrità & Performance**: Protezione dei dati e latenze minime tramite caching aggressivo.
+- **Osservabilità**: Monitoraggio costante per interventi proattivi.
+
+---
+
+## 👥 Stakeholder
+
+- **Utenti Finali**: Appassionati che cercano condivisione e socializzazione.
+- **Team Tecnico**: Sviluppatori, Ops e Security specialist che mantengono la piattaforma.
+- **Content Managers**: Moderatori (AI e umani) che garantiscono un ambiente sano.
+- **Product Owners**: Chi definisce la direzione strategica e le priorità.
+- **External Providers**: Fornitori di infrastruttura cloud e servizi di terze parti.

@@ -1,11 +1,10 @@
-go 1.25
-
-toolchain go1.25.0
+go 1.25.5
 
 use (
+	./microservices/cultural-service
 	./microservices/cassandra-service
 	./microservices/mongo-service
 	./microservices/neo4j-service
-	./shared/proto
 	./microservices/test-service
+	./shared/proto
 )

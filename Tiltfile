@@ -43,3 +43,18 @@ docker_build(
         restart_container()
     ]
 )
+
+
+
+# cultural-service
+docker_build(
+    'cultural-service',
+    '.',
+    dockerfile='microservices/cultural-service/Dockerfile',
+    live_update=[
+        sync('./microservices/cultural-service', '/app'),
+        sync('./shared', '/shared'),
+        run('go build -o /server main.go'),
+        restart_container()
+    ]
+)
