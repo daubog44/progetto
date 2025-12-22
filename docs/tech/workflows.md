@@ -157,6 +157,33 @@ sequenceDiagram
 
 ---
 
+### 5. Creazione Commento (Bucket Pattern & Event-Driven)
+Questo workflow dimostra come gestiamo l'alta scalabilità per i commenti.
+
+```mermaid
+sequenceDiagram
+    participant U as Utente
+    participant C as Cultural Service
+    participant M as MongoDB (Comment Buckets)
+    participant K as Kafka
+    participant F as Feed Service
+    participant CA as Cassandra (Feed Cache)
+
+    U->>C: Invia Commento (review_id, text)
+    C->>M: Trova bucket attuale o crea nuovo
+    C->>M: $push commento nel bucket
+    C->>K: Emesso evento COMMENT_ADDED
+    K-->>F: Consuma evento
+    F->>CA: Incrementa comments_count nel feed
+    C-->>U: Successo (Commento visibile)
+```
+
+**Dettagli Tecnici:**
+- **Ottimizzazione Scrittura**: Il `Cultural Service` non crea un documento per commento, ma aggiorna un documento "bucket". Questo riduce enormemente il numero di entry negli indici.
+- **Aggiornamento UI Asincrono**: Mentre il commento viene salvato in MongoDB per la visualizzazione immediata del thread, il contatore globale nel feed viene aggiornato via Kafka.
+
+---
+
 ## 🛠️ Come Analizzare una Traccia
 
 Se un'operazione è lenta (es. la creazione del profilo sembra metterci troppo):

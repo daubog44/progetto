@@ -4,18 +4,16 @@ Garantire la resilienza in un sistema a microservizi come Vibely richiede un app
 
 ---
 
-## 1. Transazioni Distribuite e Transactional Outbox
+## 1. Affidabilità dell'invio (Direct Push & Watermill)
 
-### Il Problema del "Dual Write"
-In microservizi come `auth-service`, spesso dobbiamo salvare dati su un database (Postgres) e contemporaneamente notificare altri servizi via Kafka.
-Non puoi avere una transazione atomica tra un DB e un broker. Se il commit del DB ha successo ma l'invio a Kafka fallisce, il sistema diventa inconsistente.
+In Vibely, abbiamo scelto di non usare l'Outbox Pattern (salvataggio su DB e polling successivo) per mantenere l'architettura snella e performante. Invece, i servizi pubblicano gli eventi direttamente su Kafka utilizzando **Watermill**.
 
-### La Soluzione: Outbox Pattern
-Usiamo il database come buffer temporaneo:
-1. **Atomaticità Local**: Nello stesso blocco di transazione SQL, salviamo l'entità (es. Utente) e il messaggio dell'evento in una tabella `outbox`.
-2. **Relay Worker**: Un processo separato legge la tabella `outbox` e pubblica su Kafka. Solo dopo la conferma di ricezione da parte di Kafka, il record viene marcato come `PROCESSED`.
-
-**Vantaggi**: Garantisce la consegna "At-least-once" senza perdere eventi in caso di crash del publisher.
+### Come garantiamo la coerenza?
+Poiché non esiste una transazione distribuita tra Database e Kafka, adottiamo queste precauzioni:
+1. **Atomaticità Local**: Cerchiamo di rendere l'operazione di business (es. `PostReview`) il più possibile atomica.
+2. **Watermill Publisher Retry**: Il publisher di Watermill è configurato con retry automatici in caso di brevi interruzioni di rete con Kafka.
+3. **Eventual Consistency**: Accettiamo che, in rari casi catastrofici (crash del server tra la scrittura su DB e l'invio a Kafka), i dati debbano essere riconciliati manualmente o tramite script di audit.
+4. **Idempotenza**: Fondamentale per gestire i retry infiniti senza duplicare i dati a valle (vedi sezione 3).
 
 ---
 
@@ -51,11 +49,11 @@ Se un messaggio Kafka causa un errore sistematico nel consumer:
 
 ---
 
-## 5. Outbox su Database NoSQL
+## 5. Strategia per Database NoSQL
 
-Se il database primario non è relazionale:
-- **MongoDB**: Usa le **Multi-Document Transactions** per l'outbox oppure i **Change Streams** (ascolto nativo delle modifiche alla collezione).
-- **Cassandra**: Data l'assenza di transazioni multi-tabella, si preferisce l'**Event Sourcing** (scrivi prima su Kafka) o l'uso di **Lightweight Transactions (LWT)** per garantire l'ordine.
+Quando usiamo database come MongoDB o Cassandra, la strategia rimane la stessa: **Direct Push**.
+- **MongoDB**: Usiamo le sessioni per garantire che la scrittura principale avvenga in modo atomico, seguita immediatamente dall'invio dell'evento.
+- **Cassandra**: Utilizziamo le **Lightweight Transactions (LWT)** se l'ordine e la concorrenza sono critici prima di inviare l'evento a Kafka.
 
 ---
 
