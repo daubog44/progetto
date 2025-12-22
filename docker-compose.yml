@@ -96,6 +96,16 @@ services:
     networks:
       - microservices-net
 
+  gateway-service:
+    image: gateway-service
+    build:
+      context: .
+      dockerfile: microservices/gateway-service/Dockerfile
+      target: dev
+    container_name: gateway-service
+    networks:
+      - microservices-net
+
   auth:
     image: auth
     build:
@@ -103,10 +113,9 @@ services:
       dockerfile: microservices/auth/Dockerfile
       target: dev
     container_name: auth
-    
+
     networks:
       - microservices-net
-
 
 volumes:
   cassandradata:

@@ -57,10 +57,15 @@ docker_build(
 )
 
 
-
-
-
-
-
-
-
+# gateway-service
+docker_build(
+    'gateway-service',
+    '.',
+    dockerfile='microservices/gateway-service/Dockerfile',
+    live_update=[
+        sync('./microservices/gateway-service', '/app'),
+        sync('./shared', '/shared'),
+        run('go build -o /server main.go'),
+        restart_container()
+    ]
+)
