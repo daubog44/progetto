@@ -1,7 +1,6 @@
 go 1.25.5
 
 use (
-	./microservices/cultural-service
 	./microservices/cassandra-service
 	./microservices/mongo-service
 	./microservices/neo4j-service

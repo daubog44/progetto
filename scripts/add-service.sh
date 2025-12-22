@@ -20,15 +20,18 @@ echo "🚀 Creating microservice: $SERVICE_NAME..."
 # 1. Create Directory
 mkdir -p "$SERVICE_PATH"
 
-# 2. Go Mod Init
+# 2. Setup boilerplate and dependencies
 cd "$SERVICE_PATH" || exit
-go mod init "github.com/username/progetto/microservices/$SERVICE_NAME"
-go get google.golang.org/grpc
-go get google.golang.org/protobuf
-cd - > /dev/null
 
-# 3. Create Main.go Boilerplate
-cat <<EOF > "$SERVICE_PATH/main.go"
+# 2.1 Initialize Go module
+go mod init "github.com/username/progetto/$SERVICE_NAME"
+go mod edit -go=1.25
+go mod edit -toolchain=go1.25.0
+go mod edit -replace github.com/username/progetto/proto=../../shared/proto
+
+# 2.2 Create Main.go Boilerplate FIRST
+# This is crucial so go mod tidy can see the imports
+cat <<EOF > "main.go"
 package main
 
 import (
@@ -78,7 +81,16 @@ func main() {
 }
 EOF
 
-# 4. Create Dockerfile
+# 2.3 Resolve dependencies
+# Now go mod tidy will find the imports in main.go
+go get google.golang.org/grpc@v1.77.0
+go get google.golang.org/protobuf@v1.36.11
+go get github.com/username/progetto/proto
+go mod tidy
+
+cd - > /dev/null
+
+# 3. Create Dockerfile
 cat <<EOF > "$SERVICE_PATH/Dockerfile"
 # Builder
 FROM golang:1.25-alpine AS builder

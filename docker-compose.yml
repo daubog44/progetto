@@ -96,16 +96,6 @@ services:
     networks:
       - microservices-net
 
-  cultural-service:
-    image: cultural-service
-    build:
-      context: .
-      dockerfile: microservices/cultural-service/Dockerfile
-      target: dev
-    container_name: cultural-service
-    networks:
-      - microservices-net
-
 volumes:
   cassandradata:
   mongodata:
