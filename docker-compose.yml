@@ -96,6 +96,18 @@ services:
     networks:
       - microservices-net
 
+  auth:
+    image: auth
+    build:
+      context: .
+      dockerfile: microservices/auth/Dockerfile
+      target: dev
+    container_name: auth
+    
+    networks:
+      - microservices-net
+
+
 volumes:
   cassandradata:
   mongodata:

@@ -44,6 +44,17 @@ docker_build(
     ]
 )
 
+docker_build(
+    'auth',
+    '.',
+    dockerfile='microservices/auth/Dockerfile',
+    live_update=[
+        sync('./microservices/auth', '/app'),
+        sync('./shared', '/shared'),
+        run('go build -o /server main.go'),
+        restart_container()
+    ]
+)
 
 
 
