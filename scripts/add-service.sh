@@ -99,7 +99,7 @@ COPY shared/ /shared/
 COPY microservices/$SERVICE_NAME/go.mod microservices/$SERVICE_NAME/go.sum ./
 RUN go mod download
 COPY microservices/$SERVICE_NAME/ .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /server main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 
 # Runtime
 FROM gcr.io/distroless/static-debian12 AS production
@@ -115,7 +115,7 @@ COPY shared/ /shared/
 COPY microservices/$SERVICE_NAME/go.mod microservices/$SERVICE_NAME/go.sum ./
 RUN go mod download
 COPY microservices/$SERVICE_NAME/ .
-RUN go build -o /server main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 ENTRYPOINT ["/server"]
 EOF
 
@@ -144,7 +144,7 @@ docker_build(
     live_update=[
         sync('./microservices/$SERVICE_NAME', '/app'),
         sync('./shared', '/shared'),
-        run('go build -o /server main.go'),
+        run('go build -o /server .'),
         restart_container()
     ]
 )

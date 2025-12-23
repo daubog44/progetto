@@ -13,7 +13,7 @@ docker_build(
     live_update=[
         sync('./microservices/mongo-service', '/app'),
         sync('./shared', '/shared'),
-        run('go build -o /server main.go'),
+        run('go build -o /server .'),
         restart_container()
     ]
 )
@@ -26,7 +26,7 @@ docker_build(
     live_update=[
         sync('./microservices/cassandra-service', '/app'),
         sync('./shared', '/shared'),
-        run('go build -o /server main.go'),
+        run('go build -o /server .'),
         restart_container()
     ]
 )
@@ -39,7 +39,7 @@ docker_build(
     live_update=[
         sync('./microservices/neo4j-service', '/app'),
         sync('./shared', '/shared'),
-        run('go build -o /server main.go'),
+        run('go build -o /server .'),
         restart_container()
     ]
 )
@@ -51,7 +51,7 @@ docker_build(
     live_update=[
         sync('./microservices/auth', '/app'),
         sync('./shared', '/shared'),
-        run('go build -o /server main.go'),
+        run('go build -o /server .'),
         restart_container()
     ]
 )
@@ -65,7 +65,13 @@ docker_build(
     live_update=[
         sync('./microservices/gateway-service', '/app'),
         sync('./shared', '/shared'),
-        run('go build -o /server main.go'),
+        run('go build -o /server .'),
         restart_container()
     ]
 )
+
+# --- Infrastructure ---
+# Kafka and Kafka UI are managed by docker-compose, but we can make them visible in Tilt
+dc_resource('kafka', labels=['infra'])
+dc_resource('kafka-ui', labels=['infra'])
+dc_resource('ngrok', labels=['infra'])

@@ -5,7 +5,7 @@ COPY shared/ /shared/
 COPY microservices/cassandra-service/go.mod microservices/cassandra-service/go.sum ./
 RUN go mod download
 COPY microservices/cassandra-service/ .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /server main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 
 # Runtime
 FROM gcr.io/distroless/static-debian12 AS production
@@ -21,5 +21,5 @@ COPY shared/ /shared/
 COPY microservices/cassandra-service/go.mod microservices/cassandra-service/go.sum ./
 RUN go mod download
 COPY microservices/cassandra-service/ .
-RUN go build -o /server main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 ENTRYPOINT ["/server"]

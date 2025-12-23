@@ -13,4 +13,5 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 )
+
 replace github.com/username/progetto/proto => ../../shared/proto
