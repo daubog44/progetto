@@ -1,10 +1,10 @@
 # Builder
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
-COPY shared/ /shared/
-COPY microservices/neo4j-service/go.mod microservices/neo4j-service/go.sum ./
+COPY shared/ ./shared/
+COPY microservices/neo4j-service/ ./microservices/neo4j-service/
+WORKDIR /app/microservices/neo4j-service
 RUN go mod download
-COPY microservices/neo4j-service/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 
 # Runtime
@@ -17,9 +17,9 @@ ENTRYPOINT ["/server"]
 # Dev
 FROM golang:1.25-alpine AS dev
 WORKDIR /app
-COPY shared/ /shared/
-COPY microservices/neo4j-service/go.mod microservices/neo4j-service/go.sum ./
+COPY shared/ ./shared/
+COPY microservices/neo4j-service/ ./microservices/neo4j-service/
+WORKDIR /app/microservices/neo4j-service
 RUN go mod download
-COPY microservices/neo4j-service/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 ENTRYPOINT ["/server"]

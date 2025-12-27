@@ -27,17 +27,14 @@ Vibely mira a creare uno spazio dove gli appassionati di cultura possono connett
 Il progetto è organizzato come un **monorepo**.
 
 ```text
-├── docs/
-│   ├── tech/              # Specifiche tecniche e visione (Vibely)
-│   └── tutorial/          # Guide all'architettura e workflow
+├── docs/                  # Documentazione
 ├── microservices/
-│   ├── mongo-service/     # Gestione profili e metadati opere (MongoDB)
-│   ├── cassandra-service/ # Feed, attività e messaggistica (Cassandra)
-│   ├── neo4j-service/     # Relazioni social e grafi di interesse (Neo4j)
-│   └── test-service/      # Integration tests
+│   ├── auth/              # Gestione Utenti, JWT & Auth (Postgres + Redis)
+│   ├── post-service/      # Gestione Post & Feed (MongoDB)
+│   └── gateway-service/   # API Gateway & Routing (Huma)
 ├── shared/
 │   └── proto/             # Contratti gRPC (Buf v2)
-├── docker-compose.yml     # Infrastruttura (Kafka, DB, etc.)
+├── docker-compose.yml     # Infrastruttura (Kafka, DB, GUI Tools)
 ├── Tiltfile               # Orchestrazione dev locale
 └── Taskfile.yaml          # Automazione
 ```
@@ -46,38 +43,45 @@ Il progetto è organizzato come un **monorepo**.
 
 ## 🛠 Iniziare lo Sviluppo
 
-### 1. Setup Rapido
-Esegui l'infrastruttura di base:
-```bash
-go-task up
-```
+### 1. Requisiti
+- Docker & Docker Compose
+- Go 1.22+
+- `task` (Taskfile)
 
-### 2. Sviluppo con Tilt
-Avvia i microservizi con hot-reload:
+### 2. Avvio Infrastruttura
+Esegui l'intera stack (Microservizi + DB + Tools):
 ```bash
-go-task dev
+docker compose up -d
+```
+I dati persistenti verranno salvati nella cartella locale `./data/`.
+
+### 3. Sviluppo con Tilt (Opzionale)
+Se hai Tilt installato, per hot-reload:
+```bash
+tilt up
 ```
 🔗 Dashboard Tilt: [http://localhost:10350](http://localhost:10350)
 
+### 4. Database GUI Tools
+Una volta avviato, accedi agli strumenti di gestione:
+- **CloudBeaver** (Postgres/Cassandra): [http://localhost:8978](http://localhost:8978)
+- **Redis Commander**: [http://localhost:8082](http://localhost:8082)
+- **Mongo Express**: [http://localhost:8081](http://localhost:8081)
+
+
 ---
 
-## 📚 Documentazione Tecnica
+## 📚 Documentazione
 
-Consulta le nostre guide dettagliate per comprendere il funzionamento interno:
+La documentazione è stata unificata per semplicità:
 
-### ⚙️ Architettura & Strategia
-- [Visione e Obiettivi](docs/tech/project.md) - Descrizione generale di Vibely.
-- [Workflow & Tracing](docs/tech/workflows.md) - Il viaggio delle richieste tra i servizi.
-- [Sicurezza & Performance](docs/tech/security-performance-resilience.md) - Distroless, Go e Resilienza.
-- [Analisi Architetturale](docs/tech/architecture-analysis.md) - Deep dive nei componenti.
-- [Database Schema](docs/tech/database-schema.md) - Modelli dati Polyglot.
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: Visione d'insieme, stack tecnologico e workflow (Sequence Diagrams).
+- **[DATA_MODELS.md](docs/DATA_MODELS.md)**: Schemi database attuali (Postgres, Mongo, Redis).
+- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)**: Guida operativa (Script, gRPC, Coding Standards).
 
-### 📖 Tutorial & Workflow
-- [Aggiunta Microservizio](docs/tutorial/add-microservice.md) - Guida e script di automazione.
-- [Workflow gRPC & Buf v2](docs/tutorial/grpc-workflow.md) - Generazione codice dai contratti.
-- [Event-Driven Architecture](docs/tutorial/event-driven-architecture.md) - Integrazione gRPC + Kafka.
-- [Frontend Workflow](docs/tutorial/frontend-workflow.md) - Sviluppo UI e integrazione API.
 
 ---
 Realizzato con ⚡ e ❤️ per Vibely.
 ```
+
+//TODO: logica di caching

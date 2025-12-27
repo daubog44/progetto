@@ -1,78 +1,122 @@
 package main
 
 import (
-	"context"
 	"log/slog"
-	"net/http"
+	"net"
 	"os"
+	"strings"
 
-	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humachi"
-	"github.com/go-chi/chi/v5"
+	"context"
 
-	_ "github.com/danielgtaylor/huma/v2/formats/cbor"
+	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
+
+	// "github.com/ThreeDotsLabs/watermill-opentelemetry/pkg/opentelemetry" REMOVED
+	"github.com/redis/go-redis/v9"
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+	"github.com/username/progetto/auth/internal/handler"
+	"github.com/username/progetto/auth/internal/model"
+	"github.com/username/progetto/auth/internal/repository"
+	"github.com/username/progetto/auth/internal/service"
+	authv1 "github.com/username/progetto/proto/gen/go/auth/v1"
+	"github.com/username/progetto/shared/pkg/observability"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
-
-// ClerkWebhookInput represents the payload from Clerk
-type ClerkWebhookInput struct {
-	Body struct {
-		Data jsonRawMessage `json:"data"`
-		Type string         `json:"type" doc:"Clerk event type (e.g. user.created)"`
-	}
-}
-
-// Simple wrapper for raw message to preserve data for logging/processing
-type jsonRawMessage []byte
-
-func (m *jsonRawMessage) UnmarshalJSON(data []byte) error {
-	*m = append((*m)[0:0], data...)
-	return nil
-}
-
-func (m jsonRawMessage) MarshalJSON() ([]byte, error) {
-	return m, nil
-}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
+	// Init Observability
+	obsCfg := observability.LoadConfigFromEnv()
+	shutdown, err := observability.Init(context.Background(), obsCfg)
+	if err != nil {
+		slog.Error("failed to init observability", "error", err)
+	}
+	defer func() {
+		if shutdown != nil {
+			shutdown(context.Background())
+		}
+	}()
+	logger = slog.Default()
 
-	router := chi.NewMux()
-	api := humachi.New(router, huma.DefaultConfig("Auth Service", "1.0.0"))
-
-	// Health check
-	huma.Register(api, huma.Operation{
-		OperationID: "health-check",
-		Method:      http.MethodGet,
-		Path:        "/health",
-	}, func(ctx context.Context, input *struct{}) (*struct{ Body string }, error) {
-		return &struct{ Body string }{Body: "OK"}, nil
-	})
-
-	// Clerk Webhook Handler
-	huma.Register(api, huma.Operation{
-		OperationID: "clerk-webhook",
-		Method:      http.MethodPost,
-		Path:        "/webhooks/clerk",
-		Summary:     "Clerk Webhook Handler",
-		Description: "Receive and process events from Clerk (e.g. user registration, login)",
-		Tags:        []string{"Webhooks"},
-	}, func(ctx context.Context, input *ClerkWebhookInput) (*struct{ Status int }, error) {
-		logger.Info("Received Clerk webhook",
-			"type", input.Body.Type,
-			"data", string(input.Body.Data),
-		)
-
-		// TODO: Implement actual synchronization logic (e.g. save user to DB, publish event to Kafka)
-
-		return &struct{ Status int }{Status: http.StatusOK}, nil
-	})
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	// Config
+	dbDSN := os.Getenv("APP_DB_DSN")
+	if dbDSN == "" {
+		dbDSN = "postgres://user:password@postgres:5432/auth_db?sslmode=disable"
+	}
+	redisAddr := os.Getenv("APP_REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "redis:6379"
+	}
+	kafkaBrokers := os.Getenv("APP_KAFKA_BROKERS")
+	if kafkaBrokers == "" {
+		kafkaBrokers = "kafka:29092"
+	}
+	jwtSecret := os.Getenv("APP_JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "supersecretkey"
 	}
 
-	logger.Info("Auth service listening", "port", port)
-	http.ListenAndServe(":"+port, router)
+	// 1. Postgres
+	db, err := gorm.Open(postgres.Open(dbDSN), &gorm.Config{})
+	if err != nil {
+		logger.Error("failed to connect to postgres", "error", err)
+		os.Exit(1)
+	}
+	// Add OTel Gorm Plugin
+	if err := db.Use(otelgorm.NewPlugin()); err != nil {
+		logger.Error("failed to use otelgorm plugin", "error", err)
+	}
+	// Migrate
+	if err := db.AutoMigrate(&model.User{}); err != nil {
+		logger.Error("failed to migrate db", "error", err)
+		os.Exit(1)
+	}
+
+	// 2. Redis
+	rdb := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+
+	// 3. Kafka Publisher
+	kafkaPub, err := kafka.NewPublisher(
+		kafka.PublisherConfig{
+			Brokers:   strings.Split(kafkaBrokers, ","),
+			Marshaler: kafka.DefaultMarshaler{},
+		},
+		watermill.NewStdLogger(false, false),
+	)
+	if err != nil {
+		logger.Error("failed to create kafka publisher", "error", err)
+		os.Exit(1)
+	}
+
+	// Wrap with OTel (Shared)
+	publisher := observability.NewTracingPublisher(kafkaPub)
+	defer publisher.Close()
+
+	// 4. Wiring
+	userRepo := repository.NewPostgresRepository(db)
+	tokenRepo := repository.NewRedisRepository(rdb)
+	authSvc := service.NewAuthService(userRepo, tokenRepo, publisher, jwtSecret)
+	authHandler := handler.NewAuthHandler(authSvc)
+
+	// 5. gRPC Server
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		logger.Error("failed to listen", "error", err)
+		os.Exit(1)
+	}
+
+	srv := grpc.NewServer(observability.GRPCServerOptions()...)
+	authv1.RegisterAuthServiceServer(srv, authHandler)
+	reflection.Register(srv)
+
+	logger.Info("Auth Service gRPC server listening on :50051")
+	if err := srv.Serve(lis); err != nil {
+		logger.Error("failed to serve", "error", err)
+		os.Exit(1)
+	}
 }

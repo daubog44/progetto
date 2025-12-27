@@ -28,6 +28,7 @@ go mod init "github.com/username/progetto/$SERVICE_NAME"
 go mod edit -go=1.25
 go mod edit -toolchain=go1.25.0
 go mod edit -replace github.com/username/progetto/proto=../../shared/proto
+go mod edit -replace github.com/username/progetto/shared/pkg=../../shared/pkg
 
 # 2.2 Create Main.go Boilerplate FIRST
 # This is crucial so go mod tidy can see the imports
@@ -44,6 +45,7 @@ import (
 	"google.golang.org/grpc/reflection"
     
 	datav1 "github.com/username/progetto/proto/gen/go/data/v1"
+	"github.com/username/progetto/shared/pkg/observability"
 )
 
 type server struct {
@@ -58,10 +60,20 @@ func (s *server) GetData(ctx context.Context, req *datav1.GetDataRequest) (*data
 }
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
+    // Initialize Observability
+	cfg := observability.LoadConfigFromEnv()
+	shutdown, err := observability.Init(context.Background(), cfg)
+	if err != nil {
+		slog.Error("failed to init observability", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			slog.Error("failed to shutdown observability", "error", err)
+		}
+	}()
 
-	slog.Info("Starting $SERVICE_NAME...")
+	slog.Info("Starting $SERVICE_NAME...", "config", cfg)
 
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -69,7 +81,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(observability.GRPCServerOptions()...)
 	datav1.RegisterDataServiceServer(s, &server{})
 	reflection.Register(s)
 
@@ -86,6 +98,7 @@ EOF
 go get google.golang.org/grpc@v1.77.0
 go get google.golang.org/protobuf@v1.36.11
 go get github.com/username/progetto/proto
+go get github.com/username/progetto/shared/pkg@v0.0.0-00010101000000-000000000000
 go mod tidy
 
 cd - > /dev/null
@@ -95,10 +108,10 @@ cat <<EOF > "$SERVICE_PATH/Dockerfile"
 # Builder
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
-COPY shared/ /shared/
-COPY microservices/$SERVICE_NAME/go.mod microservices/$SERVICE_NAME/go.sum ./
+COPY shared/ ./shared/
+COPY microservices/$SERVICE_NAME/ ./microservices/$SERVICE_NAME/
+WORKDIR /app/microservices/$SERVICE_NAME
 RUN go mod download
-COPY microservices/$SERVICE_NAME/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 
 # Runtime
@@ -111,10 +124,10 @@ ENTRYPOINT ["/server"]
 # Dev
 FROM golang:1.25-alpine AS dev
 WORKDIR /app
-COPY shared/ /shared/
-COPY microservices/$SERVICE_NAME/go.mod microservices/$SERVICE_NAME/go.sum ./
+COPY shared/ ./shared/
+COPY microservices/$SERVICE_NAME/ ./microservices/$SERVICE_NAME/
+WORKDIR /app/microservices/$SERVICE_NAME
 RUN go mod download
-COPY microservices/$SERVICE_NAME/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 ENTRYPOINT ["/server"]
 EOF
@@ -142,8 +155,8 @@ docker_build(
     '.',
     dockerfile='microservices/$SERVICE_NAME/Dockerfile',
     live_update=[
-        sync('./microservices/$SERVICE_NAME', '/app'),
-        sync('./shared', '/shared'),
+        sync('./microservices/$SERVICE_NAME', '/app/microservices/$SERVICE_NAME'),
+        sync('./shared', '/app/shared'),
         run('go build -o /server .'),
         restart_container()
     ]

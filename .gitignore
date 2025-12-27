@@ -11,3 +11,6 @@ auth-service/ent/*
 post-service/ent/*
 !post-service/ent/schema
 !post-service/ent/generate.go
+
+# Local Data
+data/

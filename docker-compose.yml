@@ -3,7 +3,7 @@ services:
 
   # Cassandra
   cassandra:
-    image: cassandra:4.1
+    image: cassandra:latest
     container_name: cassandra
     ports:
       - "9042:9042"
@@ -11,26 +11,22 @@ services:
       CASSANDRA_CLUSTER_NAME: "MicroCluster"
       CASSANDRA_DC: "datacenter1"
     volumes:
-      - cassandradata:/var/lib/cassandra
+      - ./data/cassandra:/var/lib/cassandra
     networks:
       - microservices-net
-    healthcheck:
-      test: [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   # MongoDB
   mongodb:
     image: mongo:latest
     container_name: mongodb
+    command: [ "mongod", "--quiet" ]
     ports:
       - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
     volumes:
-      - mongodata:/data/db
+      - ./data/mongo:/data/db
     networks:
       - microservices-net
 
@@ -44,7 +40,7 @@ services:
     environment:
       NEO4J_AUTH: neo4j/password
     volumes:
-      - neo4jdata:/data
+      - ./data/neo4j:/data
     networks:
       - microservices-net
 
@@ -68,9 +64,9 @@ services:
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
       KAFKA_CLUSTER_ID: 'MkU3OEVBNTcwNTJDRkFCMz'
     healthcheck:
-      test: [ "CMD-SHELL", "kafka-cluster-id --bootstrap-server localhost:29092 || exit 1" ]
+      test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9094" ]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
     networks:
       - microservices-net
@@ -93,17 +89,21 @@ services:
 
   # --- Microservices (Orchestrated by Tilt) ---
 
-  mongo-service:
-    image: mongo-service
+  post-service:
+    image: post-service
     build:
       context: .
-      dockerfile: microservices/mongo-service/Dockerfile
+      dockerfile: microservices/post-service/Dockerfile
       target: dev
-    container_name: mongo-service
+    container_name: post-service
     depends_on:
       - mongodb
+      - kafka
     environment:
-      - APP_MONGO_URI=mongodb://mongodb:27017
+      - APP_MONGO_URI=mongodb://admin:password@mongodb:27017
+      - APP_KAFKA_BROKERS=kafka:29092
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - OTEL_SERVICE_NAME=post-service
     networks:
       - microservices-net
 
@@ -116,8 +116,12 @@ services:
     container_name: cassandra-service
     depends_on:
       - cassandra
+      - kafka
     environment:
-      APP_CASSANDRA_HOST: "cassandra"
+      - APP_CASSANDRA_HOST=cassandra
+      - APP_KAFKA_BROKERS=kafka:29092
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - OTEL_SERVICE_NAME=cassandra-service
     networks:
       - microservices-net
 
@@ -128,14 +132,37 @@ services:
       dockerfile: microservices/neo4j-service/Dockerfile
       target: dev
     container_name: neo4j-service
-    ports:
-      - "50053:50051"
     depends_on:
       - neo4j
+      - kafka
     environment:
       - APP_NEO4J_URI=bolt://neo4j:7687
       - APP_NEO4J_USER=neo4j
       - APP_NEO4J_PASSWORD=password
+      - APP_KAFKA_BROKERS=kafka:29092
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - OTEL_SERVICE_NAME=neo4j-service
+    networks:
+      - microservices-net
+
+  auth-service:
+    image: auth-service
+    build:
+      context: .
+      dockerfile: microservices/auth/Dockerfile
+      target: dev
+    container_name: auth-service
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    environment:
+      - APP_DB_DSN=postgres://user:password@postgres:5432/auth_db?sslmode=disable
+      - APP_REDIS_ADDR=redis:6379
+      - APP_KAFKA_BROKERS=kafka:29092
+      - APP_JWT_SECRET=supersecretkey
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - OTEL_SERVICE_NAME=auth-service
     networks:
       - microservices-net
 
@@ -145,45 +172,254 @@ services:
       context: .
       dockerfile: microservices/gateway-service/Dockerfile
       target: dev
+    container_name: gateway-service
     ports:
       - "8888:8888"
-    container_name: gateway-service
-    networks:
-      - microservices-net
-
-  auth:
-    image: auth
-    build:
-      context: .
-      dockerfile: microservices/auth/Dockerfile
-      target: dev
-    container_name: auth
-    networks:
-      - microservices-net
-
-  # ngrok tunnel for Clerk webhooks
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: ngrok
-    restart: unless-stopped
-    command:
-      - "http"
-      - "--url=terrier-gentle-randomly.ngrok-free.app"
-      - "auth:8080"
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
     depends_on:
-      - auth
+      - auth-service
+      - post-service
+      - kafka
+    environment:
+      - APP_JWT_SECRET=supersecretkey
+      - POST_SERVICE=post-service:50051
+      - AUTH_SERVICE=auth-service:50051
+      - KAFKA_BROKERS=kafka:29092
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - OTEL_SERVICE_NAME=gateway-service
     networks:
       - microservices-net
 
-volumes:
-  cassandradata:
-  mongodata:
-  neo4jdata:
+  # Redis
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - microservices-net
 
+  # Postgres
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: auth_db
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./deploy/config/postgres-init.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - microservices-net
+
+  # --- GUI Tools ---
+
+  # CloudBeaver (Postgres & Cassandra UI)
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:latest
+    container_name: cloudbeaver
+    ports:
+      - "8978:8978"
+    volumes:
+      - ./data/cloudbeaver:/opt/cloudbeaver/workspace
+    networks:
+      - microservices-net
+
+  # Redis Commander (Redis UI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    networks:
+      - microservices-net
+    depends_on:
+      - redis
+
+  # Mongo Express (MongoDB UI)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+      - ME_CONFIG_BASICAUTH=false
+    networks:
+      - microservices-net
+    depends_on:
+      - mongodb
+
+  # --- Observability Stack ---
+
+  # MinIO (Unified Storage)
+  minio:
+    image: minio/minio
+    command: [ "server", "/data", "--console-address", ":9001" ]
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - ./data/minio:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-net
+
+  minio-setup:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c " until (/usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin) do echo '...waiting for MinIO...' && sleep 1; done; /usr/bin/mc mb --ignore-existing local/loki-bucket; /usr/bin/mc mb --ignore-existing local/tempo-bucket; exit 0; "
+    networks:
+      - microservices-net
+
+  # Loki (Logs Backend)
+  loki:
+    image: grafana/loki:latest
+    user: "0:0"
+    command: [ "-config.file=/etc/loki/local-config.yaml", "-log.level=warn" ]
+    volumes:
+      - ./deploy/config/loki.yaml:/etc/loki/local-config.yaml
+      - loki-data:/tmp/loki
+    ports:
+      - "3100:3100"
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-setup:
+        condition: service_completed_successfully
+    networks:
+      - microservices-net
+
+  # Tempo (Traces Backend)
+  tempo:
+    image: grafana/tempo:latest
+    user: "0:0"
+    command: [ "--config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./deploy/config/tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200"
+      - "4317:4317" # OTLP grpc
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-setup:
+        condition: service_completed_successfully
+    networks:
+      - microservices-net
+
+  # Prometheus (Scraping + Metrics)
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./deploy/config/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9089:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-remote-write-receiver"
+      - "--web.enable-lifecycle"
+    networks:
+      - microservices-net
+
+  # Grafana (Visualization)
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_ALERTING_ENABLED=false
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - GF_LOG_LEVEL=warn
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./deploy/config/grafana/provisioning:/etc/grafana/provisioning
+      - ./deploy/config/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - microservices-net
+
+  # Alloy (Collector)
+  alloy:
+    image: grafana/alloy:latest
+    command: [ "run", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy" ]
+    volumes:
+      - ./deploy/config/alloy.config:/etc/alloy/config.alloy
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_started
+    ports:
+      - "12345:12345"
+      - "4318:4318" # OTLP HTTP
+    networks:
+      - microservices-net
+
+  # Pyroscope
+  pyroscope:
+    image: grafana/pyroscope:latest
+    ports:
+      - "4040:4040"
+    networks:
+      - microservices-net
+
+  # cAdvisor
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8083:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /dev:/dev:ro
+    networks:
+      - microservices-net
+
+  # K6 (Load Testing)
+  k6:
+    image: grafana/k6:latest
+    container_name: k6
+    volumes:
+      - ./test/k6:/scripts
+    ports:
+      - "6565:6565" # K6 REST API
+    networks:
+      - microservices-net
+    profiles: [ "tools" ]
 
 networks:
   microservices-net:
+
+
+volumes:
+  loki-data:
+  tempo-data:
 
 

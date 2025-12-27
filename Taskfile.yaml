@@ -26,3 +26,8 @@ tasks:
     desc: Run tests for all services
     cmds:
       - go test -v ./test-service/...
+
+  load-test:
+    desc: Run K6 load test
+    cmds:
+      - ./scripts/run-load-test.sh

@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"log/slog"
 	"net/http"
 
-	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/danielgtaylor/huma/v2"
 	postv1 "github.com/username/progetto/proto/gen/go/post/v1"
 	"google.golang.org/grpc/codes"
@@ -30,17 +28,17 @@ type PostOutput struct {
 type ListPostsInput struct {
 	AuthorID      string `query:"author_id" doc:"Filter by author ID"`
 	Limit         int32  `query:"limit" doc:"Maximum number of posts to return" default:"20"`
-	NextPageToken string `query:"next_page" doc:"Token for the next page of results"`
+	NextPageToken string `query:"anchorPage" doc:"Token for the next page of results"`
 }
 
 type ListPostsOutput struct {
 	Body struct {
 		Posts         []*postv1.Post `json:"posts"`
-		NextPageToken string         `json:"next_page"`
+		NextPageToken string         `json:"anchorPage"`
 	}
 }
 
-func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, publisher message.Publisher) {
+func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, logger *slog.Logger) {
 	huma.Register(api, huma.Operation{
 		OperationID: "create-post",
 		Method:      http.MethodPost,
@@ -54,13 +52,9 @@ func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, publisher
 			MediaUrls: input.Body.MediaURLs,
 		})
 		if err != nil {
+			logger.Error("create post failed", "error", err)
 			return nil, MapGRPCError(err)
 		}
-
-		// Publish Event
-		payload, _ := json.Marshal(resp.Post)
-		msg := message.NewMessage(watermill.NewUUID(), payload)
-		_ = publisher.Publish("post.created", msg)
 
 		output := &PostOutput{}
 		output.Body.Post = resp.Post
@@ -80,6 +74,7 @@ func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, publisher
 			PostId: input.ID,
 		})
 		if err != nil {
+			logger.Warn("get post failed", "error", err, "post_id", input.ID) // Warn because likely 404
 			return nil, MapGRPCError(err)
 		}
 
@@ -101,6 +96,7 @@ func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, publisher
 			NextPageToken: input.NextPageToken,
 		})
 		if err != nil {
+			logger.Error("list posts failed", "error", err)
 			return nil, MapGRPCError(err)
 		}
 
@@ -129,12 +125,9 @@ func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, publisher
 			UserId: input.UserID,
 		})
 		if err != nil {
+			logger.Error("like post failed", "error", err)
 			return nil, MapGRPCError(err)
 		}
-
-		// Publish Event
-		msg := message.NewMessage(watermill.NewUUID(), []byte(input.ID))
-		_ = publisher.Publish("post.liked", msg)
 
 		return &struct {
 			Body struct {

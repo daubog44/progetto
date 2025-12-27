@@ -1,0 +1,9 @@
+# Ignore data directory to prevent permission errors and watch loops
+data/
+
+# Ignore temporary files
+tmp/
+.git/
+.idea/
+.vscode/
+bin/
