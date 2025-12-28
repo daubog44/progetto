@@ -35,37 +35,14 @@ dc_resource('tempo', labels=['Observability']) # Headless
 dc_resource('loki', labels=['Observability']) # Headless
 dc_resource('pyroscope', labels=['Observability'], links=[link('http://localhost:4040', 'Pyroscope')])
 dc_resource('alloy', labels=['Observability'])
+dc_resource('minio-setup', labels=['Observability'])
+dc_resource('cadvisor', labels=['Observability'])
+dc_resource('renderer', labels=['Observability'], links=[link('http://localhost:3000', 'Renderer Proxy')])
+dc_resource('renderer-backend', labels=['Observability'])
 
 
 # --- Microservices ---
 
-# Cassandra Service
-docker_build(
-    'cassandra-service',
-    '.',
-    dockerfile='microservices/cassandra-service/Dockerfile',
-    live_update=[
-        sync('./microservices/cassandra-service', '/app'),
-        sync('./shared', '/shared'),
-        run('go build -o /server .'),
-        restart_container()
-    ]
-)
-dc_resource('cassandra-service', labels=['Microservices'])
-
-# Neo4j Service
-docker_build(
-    'neo4j-service',
-    '.',
-    dockerfile='microservices/neo4j-service/Dockerfile',
-    live_update=[
-        sync('./microservices/neo4j-service', '/app'),
-        sync('./shared', '/shared'),
-        run('go build -o /server .'),
-        restart_container()
-    ]
-)
-dc_resource('neo4j-service', labels=['Microservices'])
 
 
 # Auth Service
@@ -111,3 +88,32 @@ docker_build(
     ]
 )
 dc_resource('post-service', labels=['Microservices'])
+
+
+# Migration Tool (Automatic)
+# Runs on startup to initialize Cassandra schema.
+docker_build(
+    'messaging-migration',
+    '.',
+    dockerfile='microservices/messaging-service/build/package/migrate/Dockerfile',
+)
+dc_resource(
+    'messaging-migration',
+    labels=['Tooling'],
+    # Removed manual trigger for auto-start
+)
+
+
+# messaging-service
+docker_build(
+    'messaging-service',
+    '.',
+    dockerfile='microservices/messaging-service/Dockerfile',
+    live_update=[
+        sync('./microservices/messaging-service', '/app/microservices/messaging-service'),
+        sync('./shared', '/app/shared'),
+        run('go build -o /server .'),
+        restart_container()
+    ]
+)
+dc_resource('messaging-service', labels=['Microservices'])

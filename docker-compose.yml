@@ -8,8 +8,13 @@ services:
     ports:
       - "9042:9042"
     environment:
-      CASSANDRA_CLUSTER_NAME: "MicroCluster"
-      CASSANDRA_DC: "datacenter1"
+      - CASSANDRA_CLUSTER_NAME=MicroCluster
+      - CASSANDRA_DC=datacenter1
+      - CASSANDRA_RPC_ADDRESS=0.0.0.0
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+      - MAX_HEAP_SIZE=512M
+    healthcheck:
+      test: [ "CMD-SHELL", "nodetool status" ]
     volumes:
       - ./data/cassandra:/var/lib/cassandra
     networks:
@@ -107,44 +112,6 @@ services:
     networks:
       - microservices-net
 
-  cassandra-service:
-    image: cassandra-service
-    build:
-      context: .
-      dockerfile: microservices/cassandra-service/Dockerfile
-      target: dev
-    container_name: cassandra-service
-    depends_on:
-      - cassandra
-      - kafka
-    environment:
-      - APP_CASSANDRA_HOST=cassandra
-      - APP_KAFKA_BROKERS=kafka:29092
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
-      - OTEL_SERVICE_NAME=cassandra-service
-    networks:
-      - microservices-net
-
-  neo4j-service:
-    image: neo4j-service
-    build:
-      context: .
-      dockerfile: microservices/neo4j-service/Dockerfile
-      target: dev
-    container_name: neo4j-service
-    depends_on:
-      - neo4j
-      - kafka
-    environment:
-      - APP_NEO4J_URI=bolt://neo4j:7687
-      - APP_NEO4J_USER=neo4j
-      - APP_NEO4J_PASSWORD=password
-      - APP_KAFKA_BROKERS=kafka:29092
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
-      - OTEL_SERVICE_NAME=neo4j-service
-    networks:
-      - microservices-net
-
   auth-service:
     image: auth-service
     build:
@@ -222,6 +189,9 @@ services:
     container_name: cloudbeaver
     ports:
       - "8978:8978"
+    environment:
+      - CB_ADMIN_NAME=cbadmin
+      - CB_ADMIN_PASSWORD=Password123!
     volumes:
       - ./data/cloudbeaver:/opt/cloudbeaver/workspace
     networks:
@@ -294,7 +264,7 @@ services:
     command: [ "-config.file=/etc/loki/local-config.yaml", "-log.level=warn" ]
     volumes:
       - ./deploy/config/loki.yaml:/etc/loki/local-config.yaml
-      - loki-data:/tmp/loki
+      - ./data/loki:/tmp/loki
     ports:
       - "3100:3100"
     depends_on:
@@ -312,7 +282,7 @@ services:
     command: [ "--config.file=/etc/tempo.yaml" ]
     volumes:
       - ./deploy/config/tempo.yaml:/etc/tempo.yaml
-      - tempo-data:/tmp/tempo
+      - ./data/tempo:/tmp/tempo
     ports:
       - "3200:3200"
       - "4317:4317" # OTLP grpc
@@ -341,22 +311,89 @@ services:
     networks:
       - microservices-net
 
+  renderer-backend:
+    image: grafana/grafana-image-renderer:latest
+    container_name: renderer-backend
+    environment:
+      - ENABLE_METRICS=true
+      # TIMEOUT ESTREMI (15+ MINUTI TOTALI)
+      - RENDERING_TIMEOUT=900s # 15min TOTALE
+      # BROWSER READINESS - LENTO MA COMPLETO
+      - BROWSER_READINESS_TIMEOUT=600s # 10min per pagina "pronta"
+      - BROWSER_READINESS_PRIOR_WAIT=5s # Pausa iniziale
+      - BROWSER_READINESS_ITERATION_INTERVAL=200ms
+      - BROWSER_READINESS_WAIT_FOR_N_QUERY_CYCLES=10 # Stabilità estrema
+      # NETWORK & QUERY - PIU' LENTI MA COMPLETE
+      - BROWSER_READINESS_GIVE_UP_ON_FIRST_QUERY=600s
+      - RENDERING_CLUSTERING_TIMEOUT=120s
+      - BROWSER_READINESS_GIVE_UP_ON_ALL_QUERIES=300s # 5min query
+      - BROWSER_READINESS_NETWORK_IDLE_TIMEOUT=120s # Network idl
+      # SCROLL LENTO (fullPageImage)
+      - BROWSER_TIME_BETWEEN_SCROLLS=200ms
+      # CHROME FLAGS OTTIMIZZATI
+      - BROWSER_FLAG=--no-sandbox
+      - BROWSER_FLAG=--disable-dev-shm-usage
+      - BROWSER_FLAG=--disable-gpu
+      - BROWSER_FLAG=--disable-web-security
+      - BROWSER_FLAG=--disable-features=VizDisplayCompositor
+      # TIMEZONE
+      - BROWSER_TIMEZONE=Europe/Rome
+    volumes:
+      - ./renderer-data:/data
+    networks:
+      - microservices-net
+    # Internal backend doesn't need host exposure, but useful for debug on distinct port
+    ports:
+      - "8089:8081"
+
+  # PROXY SERVICE (Named 'renderer' so Grafana hits THIS by default)
+  # STRATEGY G Update: Now also acts as FRONT DOOR on port 3000
+  renderer:
+    image: nginx:alpine
+    container_name: renderer-proxy
+    ports:
+      - "8084:8081" # Internal Proxy Debug
+      - "3000:3000" # Front Door (Browser -> Nginx -> Grafana)
+    volumes:
+      - ./deploy/config/renderer_proxy_nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - renderer-backend
+    networks:
+      - microservices-net
+
   # Grafana (Visualization)
   grafana:
     image: grafana/grafana:latest
     environment:
+      - GF_SERVER_ROOT_URL=http://localhost:3000/
       - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=password
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin # Temporarily elevated for Renderer access
       - GF_ALERTING_ENABLED=false
       - GF_UNIFIED_ALERTING_ENABLED=true
       - GF_LOG_LEVEL=warn
       - GF_ALERTING_ENABLED=true
       - GF_UNIFIED_ALERTING_ENABLED=true
-    ports:
-      - "3000:3000"
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - GF_RENDERING_SERVER_URL=http://renderer:8081/render
+      # STRATEGY C: 600s WITH UNITS EVERYWHERE
+      - GF_RENDERING_SERVER_TIMEOUT=600s
+      - GF_RENDERING_TIMEOUT=600s
+      - GF_RENDERING_REQUEST_TIMEOUT=600s
+      # STRATEGY D: ALERTING TIMEOUT (Max 30s allowed)
+      - GF_UNIFIED_ALERTING_SCREENSHOTS_CAPTURE_TIMEOUT=30s
+      - GF_RENDERING_CALLBACK_URL=http://grafana:3000/
+      # HTTP & Proxy (Must match or exceed render timeout)
+      - GF_DATAPROXY_TIMEOUT=600s
+      - GF_HTTP_REQUEST_MAX_TIMEOUT=600s
+    # Strategy G: Front-Door Proxy takes port 3000. Grafana stays internal.
+    # ports:
+    #   - "3000:3000"
     volumes:
       - ./deploy/config/grafana/provisioning:/etc/grafana/provisioning
       - ./deploy/config/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./deploy/config/grafana/grafana.ini:/etc/grafana/grafana.ini
     networks:
       - microservices-net
 
@@ -414,12 +451,41 @@ services:
       - microservices-net
     profiles: [ "tools" ]
 
+  messaging-service:
+    image: messaging-service
+    build:
+      context: .
+      dockerfile: microservices/messaging-service/Dockerfile
+      target: dev
+    container_name: messaging-service
+    depends_on:
+      - kafka
+      - cassandra
+      - messaging-migration
+    environment:
+      - OTEL_SERVICE_NAME=messaging-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - APP_KAFKA_BROKERS=kafka:29092
+      - APP_CASSANDRA_HOST=cassandra
+      - APP_CASSANDRA_CONSISTENCY=QUORUM # Tunable consistency!
+    networks:
+      - microservices-net
+
+  messaging-migration:
+    image: messaging-migration
+    build:
+      context: .
+      dockerfile: microservices/messaging-service/build/package/migrate/Dockerfile
+    container_name: messaging-migration
+    environment:
+      - CASSANDRA_HOST=cassandra
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
 networks:
   microservices-net:
-
-
-volumes:
-  loki-data:
-  tempo-data:
 
 

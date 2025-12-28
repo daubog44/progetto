@@ -32,7 +32,7 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		return nil, fmt.Errorf("failed to init tracer: %w", err)
 	}
 
-	// 3. Initialize Meter (Prometheus)
+	// 3. Initialize Meter (OTLP)
 	shutdownMeter, err := initMeter(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init meter: %w", err)

@@ -5,10 +5,11 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 
-	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
+	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/username/progetto/gateway-service/internal/sse"
+	"github.com/username/progetto/shared/pkg/grpcutil"
+	"github.com/username/progetto/shared/pkg/watermillutil"
 
 	// "github.com/ThreeDotsLabs/watermill-opentelemetry/pkg/opentelemetry" REMOVED
 	"github.com/danielgtaylor/huma/v2"
@@ -19,10 +20,9 @@ import (
 	authv1 "github.com/username/progetto/proto/gen/go/auth/v1"
 	postv1 "github.com/username/progetto/proto/gen/go/post/v1"
 	"github.com/username/progetto/shared/pkg/observability"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"context"
+	"encoding/json"
 
 	_ "github.com/danielgtaylor/huma/v2/formats/cbor"
 )
@@ -80,13 +80,15 @@ func main() {
 		// Middleware
 		router.Use(observability.Middleware)
 		router.Use(AdminMiddleware)
-		// Prometheus endpoint
-		router.Handle("/metrics", observability.PrometheusHandler())
+
+		// SSE Handler
+		sseHandler := sse.NewHandler()
+		router.Get("/events", sseHandler.ServeHTTP)
 
 		api = humachi.New(router, huma.DefaultConfig("Gateway API", "1.0.0"))
 
 		// gRPC Client setup: Post Service
-		postConn, err := grpc.NewClient(options.PostService, append(observability.GRPCClientOptions(), grpc.WithTransportCredentials(insecure.NewCredentials()))...)
+		postConn, err := grpcutil.NewClient(options.PostService, "post-service")
 		if err != nil {
 			logger.Error("failed to connect to post-service", "error", err)
 			os.Exit(1)
@@ -94,28 +96,68 @@ func main() {
 		postClient := postv1.NewPostServiceClient(postConn)
 
 		// gRPC Client setup: Auth Service
-		authConn, err := grpc.NewClient(options.AuthService, append(observability.GRPCClientOptions(), grpc.WithTransportCredentials(insecure.NewCredentials()))...)
+		authConn, err := grpcutil.NewClient(options.AuthService, "auth-service")
 		if err != nil {
 			logger.Error("failed to connect to auth-service", "error", err)
 			os.Exit(1)
 		}
 		authClient := authv1.NewAuthServiceClient(authConn)
 
-		// Watermill Publisher (using Kafka)
-		brokers := strings.Split(options.KafkaBrokers, ",")
-		kafkaPub, err := kafka.NewPublisher(
-			kafka.PublisherConfig{
-				Brokers:   brokers,
-				Marshaler: kafka.DefaultMarshaler{},
-			},
-			watermill.NewStdLogger(false, false),
-		)
+		// Watermill Publisher (Shared Factory)
+		// wLogger := observability.NewSlogWatermillAdapter(logger) // Handled
+
+		publisher, err := watermillutil.NewKafkaPublisher(options.KafkaBrokers, logger)
 		if err != nil {
 			logger.Error("failed to create watermill publisher", "error", err)
 			os.Exit(1)
 		}
-		// Wrap with OTel (Shared)
-		publisher := observability.NewTracingPublisher(kafkaPub)
+		defer publisher.Close()
+
+		// Kafka Subscriber (For SSE events from backend)
+		// Using "gateway-service-sse" group.
+		subscriber, err := watermillutil.NewKafkaSubscriber(options.KafkaBrokers, "gateway-service-sse", logger)
+		if err != nil {
+			logger.Error("failed to create watermill subscriber", "error", err)
+			os.Exit(1)
+		}
+		defer subscriber.Close()
+
+		// Router for Gateway Inbound Events
+		msgRouter, err := watermillutil.NewRouter(logger, "gateway-events")
+		if err != nil {
+			logger.Error("failed to create router", "error", err)
+			os.Exit(1)
+		}
+
+		// Handler: Broadcast to SSE
+		broadcastHandler := func(msg *message.Message) error {
+			// user_created payload: {user_id, ...}
+			// user_creation_failed payload: {user_id, reason}
+			// Common: has user_id
+			var payload struct {
+				UserID string `json:"user_id"`
+			}
+			// Best effort unmarshal to get ID
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				return nil // skip
+			}
+
+			// Topic name as event type
+			topic := message.SubscribeTopicFromCtx(msg.Context())
+
+			sseHandler.Broadcast(msg.Context(), payload.UserID, topic, string(msg.Payload))
+			return nil
+		}
+
+		msgRouter.AddConsumerHandler("gateway_user_created", "user_created", subscriber, broadcastHandler)
+		msgRouter.AddConsumerHandler("gateway_user_creation_failed", "user_creation_failed", subscriber, broadcastHandler)
+
+		go func() {
+			slog.Info("Starting Gateway Event Router...")
+			if err := msgRouter.Run(context.Background()); err != nil {
+				slog.Error("gateway router failed", "error", err)
+			}
+		}()
 
 		// Register Routes
 		RegisterPostRoutes(api, postClient, logger)
@@ -166,6 +208,7 @@ func main() {
 			postConn.Close()
 			authConn.Close()
 			publisher.Close()
+			msgRouter.Close()
 		})
 	})
 

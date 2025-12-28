@@ -5,22 +5,19 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"strings"
 	"time"
-
-	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 
 	// "github.com/ThreeDotsLabs/watermill-opentelemetry/pkg/opentelemetry" REMOVED
 	"github.com/username/progetto/post-service/internal/handler"
 	"github.com/username/progetto/post-service/internal/repository"
 	"github.com/username/progetto/post-service/internal/worker"
 	postv1 "github.com/username/progetto/proto/gen/go/post/v1"
+	"github.com/username/progetto/shared/pkg/grpcutil"
 	"github.com/username/progetto/shared/pkg/observability"
+	"github.com/username/progetto/shared/pkg/watermillutil"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/mongo/otelmongo"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -70,25 +67,20 @@ func main() {
 	postRepo := repository.NewMongoPostRepository(db)
 	userRepo := repository.NewMongoUserRepository(db)
 
-	// 3. Kafka Consumer (User Sync)
-	kafkaSub, err := kafka.NewSubscriber(
-		kafka.SubscriberConfig{
-			Brokers:       strings.Split(kafkaBrokers, ","),
-			Unmarshaler:   kafka.DefaultMarshaler{},
-			ConsumerGroup: "post_service_user_sync",
-		},
-		watermill.NewStdLogger(false, false),
-	)
+	// 3. Kafka Consumer (User Sync) (Shared Factory)
+	subscriber, err := watermillutil.NewKafkaSubscriber(kafkaBrokers, "post_service_user_sync", logger)
 	if err != nil {
 		logger.Error("failed to create kafka subscriber", "error", err)
 		os.Exit(1)
 	}
-	// OTel Subscriber Wrapper (Shared)
-	subscriber := observability.NewTracingSubscriber(kafkaSub)
+	defer subscriber.Close()
 
 	userConsumer := worker.NewUserConsumer(userRepo)
 
-	// Start consuming in background
+	// Start consuming in background (Manual subscription because it's a simple worker, not a Router?)
+	// Original code used manual request. Let's keep it manual or move to Router?
+	// Original used: messages, err := subscriber.Subscribe(...)
+	// Shared subscriber returns `message.Subscriber`. So same API.
 	messages, err := subscriber.Subscribe(context.Background(), "user_created")
 	if err != nil {
 		logger.Error("failed to subscribe to topic", "error", err)
@@ -105,23 +97,15 @@ func main() {
 		}
 	}()
 
-	// 4. Publisher
-	kafkaPub, err := kafka.NewPublisher(
-		kafka.PublisherConfig{
-			Brokers:   strings.Split(kafkaBrokers, ","),
-			Marshaler: kafka.DefaultMarshaler{},
-		},
-		watermill.NewStdLogger(false, false),
-	)
+	// 4. Publisher (Shared Factory)
+	publisher, err := watermillutil.NewKafkaPublisher(kafkaBrokers, logger)
 	if err != nil {
 		logger.Error("failed to create kafka publisher", "error", err)
 		os.Exit(1)
 	}
-	// OTel Publisher Wrapper (Shared)
-	publisher := observability.NewTracingPublisher(kafkaPub)
 	defer publisher.Close()
 
-	// 5. gRPC Server
+	// 5. gRPC Server (Shared Factory)
 	postHandler := handler.NewPostHandler(postRepo, publisher)
 
 	lis, err := net.Listen("tcp", ":50051")
@@ -130,7 +114,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := grpc.NewServer(observability.GRPCServerOptions()...)
+	srv := grpcutil.NewServer() // Standard options
 	postv1.RegisterPostServiceServer(srv, postHandler)
 	reflection.Register(srv)
 

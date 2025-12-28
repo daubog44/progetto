@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -53,11 +52,6 @@ func initMeter(ctx context.Context, cfg Config) (func(context.Context) error, er
 	otel.SetMeterProvider(provider)
 
 	return provider.Shutdown, nil
-}
-
-// PrometheusHandler returns the HTTP handler for Prometheus metrics.
-func PrometheusHandler() http.Handler {
-	return promhttp.Handler()
 }
 
 // Middleware returns a replacement for the http handler that tracks metrics and traces.

@@ -11,6 +11,7 @@ type UserRepository interface {
 	Create(ctx context.Context, user *model.User) error
 	FindByEmail(ctx context.Context, email string) (*model.User, error)
 	FindByID(ctx context.Context, id uint) (*model.User, error)
+	Delete(ctx context.Context, id uint) error
 }
 
 type postgresRepository struct {
@@ -39,4 +40,8 @@ func (r *postgresRepository) FindByID(ctx context.Context, id uint) (*model.User
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *postgresRepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&model.User{}, id).Error
 }

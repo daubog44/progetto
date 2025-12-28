@@ -28,6 +28,7 @@ type AuthService interface {
 	Register(ctx context.Context, email, password, username string) (string, error)
 	Login(ctx context.Context, email, password string) (string, string, int64, error)
 	Refresh(ctx context.Context, refreshToken string) (string, string, int64, error)
+	CompensateUserCreation(ctx context.Context, userID string) error
 }
 
 type authService struct {
@@ -158,4 +159,12 @@ func (s *authService) generateTokens(ctx context.Context, userID uint) (string, 
 	}
 
 	return accessToken, refreshToken, int64(s.accessTokenTTL.Seconds()), nil
+}
+
+func (s *authService) CompensateUserCreation(ctx context.Context, userID string) error {
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		return err
+	}
+	return s.userRepo.Delete(ctx, uint(id))
 }

@@ -45,17 +45,29 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "transparent",
                 "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
               }
             ]
           }
@@ -474,7 +486,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(container_memory_usage_bytes{name=~\".+\"}) by (name)",
+          "expr": "sum(container_memory_usage_bytes{name=~\".+\", name!~\"prometheus|grafana|cassandra|mongodb|minio|loki|tempo\"}) by (name)",
           "legendFormat": "{{name}} RAM",
           "refId": "A"
         }
@@ -529,13 +541,31 @@
         "y": 23
       },
       "id": 16,
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "unit": "s",
+          "color": {
+            "mode": "continuous-GrYlRd"
+          }
+        },
+        "overrides": []
+      },
       "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
         "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "mean"
-          ]
-        }
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {},
+        "valueMode": "color"
       },
       "targets": [
         {
@@ -549,7 +579,7 @@
         }
       ],
       "title": "Top 5 Slowest Endpoints (Avg)",
-      "type": "barchart"
+      "type": "bargauge"
     },
     {
       "collapsed": false,
@@ -735,25 +765,80 @@
         "uid": "tempo"
       },
       "gridPos": {
-        "h": 10,
-        "w": 24,
+        "h": 8,
+        "w": 12,
         "x": 0,
         "y": 60
       },
-      "id": 14,
+      "id": 20,
       "targets": [
         {
           "datasource": {
             "type": "tempo",
             "uid": "tempo"
           },
+          "limit": 20,
+          "query": "{ status = error } | select(.traceID, .startTime, .service.name, .duration)",
           "queryType": "traceql",
-          "expr": "{resource.service.name =~ \"gateway-service|auth-service|post-service\"}",
           "refId": "A"
         }
       ],
-      "title": "Application Traces",
-      "type": "traces"
+      "title": "🔴 Error Traces (Status = Error)",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 60
+      },
+      "id": 21,
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "limit": 20,
+          "query": "{ duration > 1s } | select(.traceID, .startTime, .service.name, .duration)",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "title": "🐢 Slow Traces (> 1s)",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 68
+      },
+      "id": 22,
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "limit": 20,
+          "query": "{} | select(.traceID, .startTime, .service.name, .duration)",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "title": "🔎 Recent Traces (All)",
+      "type": "table"
     },
     {
       "datasource": {
@@ -764,7 +849,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 70
+        "y": 78
       },
       "id": 100,
       "targets": [

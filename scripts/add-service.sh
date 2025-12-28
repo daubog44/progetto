@@ -141,7 +141,7 @@ fi
 # 6. Update docker-compose.yml
 if ! grep -q "$SERVICE_NAME:" docker-compose.yml; then
     # Insert before 'volumes:' to stay inside the 'services:' block
-    sed -i "/^volumes:/i \  $SERVICE_NAME:\n    image: $SERVICE_NAME\n    build:\n      context: .\n      dockerfile: microservices/$SERVICE_NAME/Dockerfile\n      target: dev\n    container_name: $SERVICE_NAME\n    networks:\n      - microservices-net\n" docker-compose.yml
+    sed -i "/^volumes:/i \  $SERVICE_NAME:\n    image: $SERVICE_NAME\n    build:\n      context: .\n      dockerfile: microservices/$SERVICE_NAME/Dockerfile\n      target: dev\n    container_name: $SERVICE_NAME\n    environment:\n      - OTEL_SERVICE_NAME=$SERVICE_NAME\n      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317\n    networks:\n      - microservices-net\n" docker-compose.yml
     echo "✅ Updated docker-compose.yml"
 fi
 

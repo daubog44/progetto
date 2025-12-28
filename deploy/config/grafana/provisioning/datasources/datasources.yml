@@ -1,6 +1,7 @@
 apiVersion: 1
 
 datasources:
+  # 1. Prometheus (Metrics) - Nessuna modifica, già linkato a Tempo
   - name: Prometheus
     type: prometheus
     uid: prometheus
@@ -13,6 +14,7 @@ datasources:
         datasourceUid: tempo
         name: traceID
 
+  # 2. Loki (Logs) - Nessuna modifica, già linkato a Tempo via derivedFields
   - name: Loki
     type: loki
     uid: loki
@@ -25,6 +27,7 @@ datasources:
           name: TraceID
           url: "$${__value.raw}"
 
+  # 3. Tempo (Traces) - MODIFICATO PER I DEEPLINK
   - name: Tempo
     type: tempo
     uid: tempo
@@ -36,14 +39,40 @@ datasources:
         enabled: true
       search:
         hide: false
+      
+      # Link per la Service Graph (dipende da Prometheus)
       serviceMap:
         datasourceUid: 'prometheus'
 
+      # DEEPLINK 1: Trace -> Logs (Loki)
+      tracesToLogsV2:
+        datasourceUid: 'loki'
+        spanStartTimeShift: '1s'
+        spanEndTimeShift: '1s'
+        tags: [{ key: 'service.name', value: 'service_name' }]
+        filterByTraceID: true
+        filterBySpanID: false
+
+      # DEEPLINK 2: Trace -> Metrics (Prometheus)
+      tracesToMetrics:
+        datasourceUid: 'prometheus'
+        tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
+        queries:
+          - name: 'Span Duration 95th'
+            query: 'histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{$$__tags}[5m])) by (le))'
+          - name: 'Request Rate'
+            query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))'
+
+      # DEEPLINK 3: Trace -> Profiles (Pyroscope)
+      tracesToProfiles:
+        datasourceUid: 'pyroscope'
+        tags: [{ key: 'service.name', value: 'service_name' }] # Mappa service.name (Otel) a service_name (Pyroscope)
+
+  # 4. Pyroscope (Profiles)
   - name: Pyroscope
-    type: phlare
+    type: phlare # O 'grafana-pyroscope-datasource' nelle versioni recenti
     uid: pyroscope
     url: http://pyroscope:4040
     access: proxy
     jsonData:
       minRefreshInterval: 5s
-

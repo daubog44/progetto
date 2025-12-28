@@ -1,0 +1,11 @@
+
+# Ignore data directories
+data/
+renderer-data/
+*.log
+tmp/
+.git/
+.idea/
+.vscode/
+bin/
+build/

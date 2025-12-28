@@ -29,7 +29,7 @@ This document describes the observability stack implemented for the project, bas
     - Sends Red Metrics and Traces to Alloy.
 - **Application (Go)**:
     - Manual instrumentation using OpenTelemetry SDK (via `shared/pkg/observability`).
-    - Exposes `/metrics` for Prometheus scraping.
+    - Exposes OTLP for metrics push to Alloy.
     - Logs JSON logs (`slog`) with TraceID/SpanID injection for correlation.
 
 ### 4. Storage
@@ -66,7 +66,6 @@ flowchart TD
     GoApp -- "OTLP (Traces/Metrics)" --> Alloy
     GoApp -- "Profiles (HTTP)" --> Pyroscope
     GoApp -- "Log (JSON)" --> Alloy
-    GoApp -- "/metrics (Scrape)" --> Prometheus
 
     Beyla -- "OTLP (Traces/Metrics)" --> Alloy
 

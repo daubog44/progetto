@@ -1,17 +1,11 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"os"
-	"strings"
 
-	"context"
-
-	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
-
-	// "github.com/ThreeDotsLabs/watermill-opentelemetry/pkg/opentelemetry" REMOVED
 	"github.com/redis/go-redis/v9"
 	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"github.com/username/progetto/auth/internal/handler"
@@ -19,8 +13,9 @@ import (
 	"github.com/username/progetto/auth/internal/repository"
 	"github.com/username/progetto/auth/internal/service"
 	authv1 "github.com/username/progetto/proto/gen/go/auth/v1"
+	"github.com/username/progetto/shared/pkg/grpcutil"
 	"github.com/username/progetto/shared/pkg/observability"
-	"google.golang.org/grpc"
+	"github.com/username/progetto/shared/pkg/watermillutil"
 	"google.golang.org/grpc/reflection"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -62,9 +57,20 @@ func main() {
 	// 1. Postgres
 	db, err := gorm.Open(postgres.Open(dbDSN), &gorm.Config{})
 	if err != nil {
-		logger.Error("failed to connect to postgres", "error", err)
+		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)
 	}
+
+	// Connection Pooling
+	sqlDB, err := db.DB()
+	if err != nil {
+		slog.Error("failed to get sql.DB", "error", err)
+		os.Exit(1)
+	}
+	// Default to sensible values for production readiness
+	sqlDB.SetMaxIdleConns(0)    // 0 means unlimited (keep all idle connections)
+	sqlDB.SetMaxOpenConns(0)    // 0 means unlimited
+	sqlDB.SetConnMaxLifetime(0) // 0 means reuse forever
 	// Add OTel Gorm Plugin
 	if err := db.Use(otelgorm.NewPlugin()); err != nil {
 		logger.Error("failed to use otelgorm plugin", "error", err)
@@ -80,37 +86,63 @@ func main() {
 		Addr: redisAddr,
 	})
 
-	// 3. Kafka Publisher
-	kafkaPub, err := kafka.NewPublisher(
-		kafka.PublisherConfig{
-			Brokers:   strings.Split(kafkaBrokers, ","),
-			Marshaler: kafka.DefaultMarshaler{},
-		},
-		watermill.NewStdLogger(false, false),
-	)
+	// Watermill Logger (Slog Adapter)
+	// wLogger := observability.NewSlogWatermillAdapter(logger) // Handled inside utilities
+
+	// 3. Kafka Publisher (Shared Factory)
+	publisher, err := watermillutil.NewKafkaPublisher(kafkaBrokers, logger)
 	if err != nil {
 		logger.Error("failed to create kafka publisher", "error", err)
 		os.Exit(1)
 	}
-
-	// Wrap with OTel (Shared)
-	publisher := observability.NewTracingPublisher(kafkaPub)
 	defer publisher.Close()
 
-	// 4. Wiring
+	// 4. Kafka Subscriber (For Saga)
+	subscriber, err := watermillutil.NewKafkaSubscriber(kafkaBrokers, "auth-service-saga", logger)
+	if err != nil {
+		logger.Error("failed to create kafka subscriber", "error", err)
+		os.Exit(1)
+	}
+	defer subscriber.Close()
+
+	// 5. Wiring
 	userRepo := repository.NewPostgresRepository(db)
 	tokenRepo := repository.NewRedisRepository(rdb)
 	authSvc := service.NewAuthService(userRepo, tokenRepo, publisher, jwtSecret)
+
+	// Watermill Router (Shared Factory)
+	router, err := watermillutil.NewRouter(logger, "auth-saga-consumer")
+	if err != nil {
+		logger.Error("failed to create router", "error", err)
+		os.Exit(1)
+	}
+
+	sagaHandler := handler.NewSagaHandler(authSvc)
+	router.AddConsumerHandler(
+		"auth_user_creation_failed_handler",
+		"user_creation_failed",
+		subscriber,
+		sagaHandler.HandleUserCreationFailed,
+	)
+
+	// Run Router in Background
+	go func() {
+		logger.Info("Starting Auth Saga Router...")
+		if err := router.Run(context.Background()); err != nil {
+			logger.Error("router failed", "error", err)
+		}
+	}()
+
 	authHandler := handler.NewAuthHandler(authSvc)
 
-	// 5. gRPC Server
+	// 6. gRPC Server (Shared Factory)
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		logger.Error("failed to listen", "error", err)
 		os.Exit(1)
 	}
 
-	srv := grpc.NewServer(observability.GRPCServerOptions()...)
+	srv := grpcutil.NewServer() // Standard options already included
 	authv1.RegisterAuthServiceServer(srv, authHandler)
 	reflection.Register(srv)
 
