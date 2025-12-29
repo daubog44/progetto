@@ -32,10 +32,19 @@ Separiamo le operazioni di scrittura da quelle di lettura/reazione.
 - **Command**: `CreatePost` (gRPC) -> Scrive su Mongo.
 - **Event**: `PostCreated` (Kafka) -> Notifica altri sistemi (es. notifiche, analytics).
 
-### 3. Sicurezza & Resilienza
+### 3. Librerie Condivise (`shared/pkg`)
+Per garantire consistenza e resilienza, utilizziamo wrapper standardizzati:
+- `grpcutil`: Client/Server gRPC con interceptor pre-configurati (OTel, Logging, Circuit Breaker, Retry).
+- `watermillutil`: Publisher/Subscriber Kafka con OTel tracing e middleware di resilienza.
+- `resiliency`: Implementazioni standard di Circuit Breaker e Retry.
+- `observability`: Configurazione centralizzata per Tracing (OpenTelemetry) e Logging (`slog`).
+
+### 4. Sicurezza & Resilienza
 - **Zero Trust**: Comunicazione interna via gRPC.
-- **Distroless**: Immagini Docker minimali per ridurre la superficie di attacco.
-- **Graceful Shutdown**: Gestione corretta dei segnali SIGTERM.
+- **Circuit Breaker**: Protezione "fail-fast" per prevenire il cascading failure (es. Gateway -> Post Service).
+- **Retry & Backoff**: Riprovi automatici con jitter per chiamate RPC e messaggistica.
+- **Distroless**: Immagini Docker minimali.
+- **Graceful Shutdown**: Gestione corretta dei segnali.
 
 ---
 

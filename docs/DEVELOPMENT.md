@@ -60,3 +60,34 @@ Usa i codici di stato appropriati:
 ### Resilienza
 - **Database**: Usa sempre i bind mount locali per la persistenza (`./data/`).
 - **Config**: Passa tutto via variabili d'ambiente in `docker-compose.yml`.
+
+---
+
+## 🔧 4. Utilizzo Librerie Condivise
+
+Quando crei un nuovo servizio, usa i factory condivisi per ottenere resilienza e osservabilità "gratis":
+
+### gRPC Server
+```go
+import "github.com/username/progetto/shared/pkg/grpcutil"
+
+// Crea un server già configurato con OTel, Logging e Recovery
+srv := grpcutil.NewServer()
+```
+
+### gRPC Client
+```go
+// Connessione resiliente con Circuit Breaker e Retry
+conn, err := grpcutil.NewClient("target-service:50051", "target-service-breaker-name")
+```
+
+### Watermill (Kafka)
+```go
+import "github.com/username/progetto/shared/pkg/watermillutil"
+
+// Publisher con Tracing
+pub, err := watermillutil.NewKafkaPublisher(brokers, logger)
+
+// Router con Recovery, Retry e Circuit Breaker
+router, err := watermillutil.NewRouter(logger, "my-service-router")
+```

@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -66,7 +66,7 @@ func RegisterAuthRoutes(api huma.API, client authv1.AuthServiceClient, logger *s
 			Password: input.Body.Password,
 		})
 		if err != nil {
-			logger.Error("register failed", "error", err)
+			logger.ErrorContext(ctx, "register failed", "error", err)
 			return nil, MapGRPCError(err)
 		}
 		out := &RegisterOutput{}
@@ -86,7 +86,7 @@ func RegisterAuthRoutes(api huma.API, client authv1.AuthServiceClient, logger *s
 			Password: input.Body.Password,
 		})
 		if err != nil {
-			logger.Error("login failed", "error", err, "email", input.Body.Email)
+			logger.ErrorContext(ctx, "login failed", "error", err, "email", input.Body.Email)
 			return nil, MapGRPCError(err)
 		}
 		out := &LoginOutput{}
@@ -107,7 +107,7 @@ func RegisterAuthRoutes(api huma.API, client authv1.AuthServiceClient, logger *s
 			RefreshToken: input.Body.RefreshToken,
 		})
 		if err != nil {
-			logger.Error("refresh failed", "error", err)
+			logger.ErrorContext(ctx, "refresh failed", "error", err)
 			return nil, MapGRPCError(err)
 		}
 		out := &RefreshOutput{}

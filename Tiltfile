@@ -41,6 +41,14 @@ dc_resource('renderer', labels=['Observability'], links=[link('http://localhost:
 dc_resource('renderer-backend', labels=['Observability'])
 
 
+# --- Exporters ---
+dc_resource('postgres-exporter', labels=['Exporters'])
+dc_resource('cassandra-exporter', labels=['Exporters'])
+dc_resource('kafka-exporter', labels=['Exporters'])
+dc_resource('mongodb-exporter', labels=['Exporters'])
+dc_resource('redis-exporter', labels=['Exporters'])
+
+
 # --- Microservices ---
 
 

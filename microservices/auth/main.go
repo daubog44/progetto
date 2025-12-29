@@ -5,24 +5,27 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/redis/go-redis/v9"
-	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+	"github.com/username/progetto/auth/internal/events"
 	"github.com/username/progetto/auth/internal/handler"
 	"github.com/username/progetto/auth/internal/model"
 	"github.com/username/progetto/auth/internal/repository"
 	"github.com/username/progetto/auth/internal/service"
 	authv1 "github.com/username/progetto/proto/gen/go/auth/v1"
+	"github.com/username/progetto/shared/pkg/database/postgres"
+	"github.com/username/progetto/shared/pkg/database/redis"
 	"github.com/username/progetto/shared/pkg/grpcutil"
 	"github.com/username/progetto/shared/pkg/observability"
 	"github.com/username/progetto/shared/pkg/watermillutil"
 	"google.golang.org/grpc/reflection"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	// Init Observability
 	obsCfg := observability.LoadConfigFromEnv()
 	shutdown, err := observability.Init(context.Background(), obsCfg)
@@ -34,121 +37,103 @@ func main() {
 			shutdown(context.Background())
 		}
 	}()
+	// Reset logger to default (context-aware if setup)
 	logger = slog.Default()
 
 	// Config
 	dbDSN := os.Getenv("APP_DB_DSN")
 	if dbDSN == "" {
-		dbDSN = "postgres://user:password@postgres:5432/auth_db?sslmode=disable"
+		panic("APP_DB_DSN is required")
 	}
 	redisAddr := os.Getenv("APP_REDIS_ADDR")
 	if redisAddr == "" {
-		redisAddr = "redis:6379"
+		panic("APP_REDIS_ADDR is required")
 	}
 	kafkaBrokers := os.Getenv("APP_KAFKA_BROKERS")
 	if kafkaBrokers == "" {
-		kafkaBrokers = "kafka:29092"
+		panic("APP_KAFKA_BROKERS is required")
 	}
 	jwtSecret := os.Getenv("APP_JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "supersecretkey"
+		panic("APP_JWT_SECRET is required")
 	}
 
 	// 1. Postgres
-	db, err := gorm.Open(postgres.Open(dbDSN), &gorm.Config{})
+	db, err := postgres.NewPostgres(dbDSN, logger)
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)
 	}
 
-	// Connection Pooling
-	sqlDB, err := db.DB()
-	if err != nil {
-		slog.Error("failed to get sql.DB", "error", err)
-		os.Exit(1)
-	}
-	// Default to sensible values for production readiness
-	sqlDB.SetMaxIdleConns(0)    // 0 means unlimited (keep all idle connections)
-	sqlDB.SetMaxOpenConns(0)    // 0 means unlimited
-	sqlDB.SetConnMaxLifetime(0) // 0 means reuse forever
-	// Add OTel Gorm Plugin
-	if err := db.Use(otelgorm.NewPlugin()); err != nil {
-		logger.Error("failed to use otelgorm plugin", "error", err)
-	}
-	// Migrate
-	if err := db.AutoMigrate(&model.User{}); err != nil {
-		logger.Error("failed to migrate db", "error", err)
+	if err := postgres.AutoMigrate(db, &model.User{}); err != nil {
+		slog.Error("failed to migrate db", "error", err)
 		os.Exit(1)
 	}
 
 	// 2. Redis
-	rdb := redis.NewClient(&redis.Options{
-		Addr: redisAddr,
-	})
+	rdb, err := redis.NewRedis(redisAddr, logger)
+	if err != nil {
+		slog.Error("failed to init redis", "error", err)
+		os.Exit(1)
+	}
 
-	// Watermill Logger (Slog Adapter)
-	// wLogger := observability.NewSlogWatermillAdapter(logger) // Handled inside utilities
-
-	// 3. Kafka Publisher (Shared Factory)
+	// 3. Kafka Publisher (Used by AuthService)
 	publisher, err := watermillutil.NewKafkaPublisher(kafkaBrokers, logger)
 	if err != nil {
-		logger.Error("failed to create kafka publisher", "error", err)
+		slog.Error("failed to create kafka publisher", "error", err)
 		os.Exit(1)
 	}
 	defer publisher.Close()
 
-	// 4. Kafka Subscriber (For Saga)
-	subscriber, err := watermillutil.NewKafkaSubscriber(kafkaBrokers, "auth-service-saga", logger)
-	if err != nil {
-		logger.Error("failed to create kafka subscriber", "error", err)
-		os.Exit(1)
-	}
-	defer subscriber.Close()
-
-	// 5. Wiring
+	// 4. Wiring
 	userRepo := repository.NewPostgresRepository(db)
 	tokenRepo := repository.NewRedisRepository(rdb)
 	authSvc := service.NewAuthService(userRepo, tokenRepo, publisher, jwtSecret)
 
-	// Watermill Router (Shared Factory)
-	router, err := watermillutil.NewRouter(logger, "auth-saga-consumer")
+	// 5. Watermill Event Router
+	eventRouter, err := events.NewEventRouter(logger, kafkaBrokers, authSvc)
 	if err != nil {
-		logger.Error("failed to create router", "error", err)
+		slog.Error("failed to create event router", "error", err)
 		os.Exit(1)
 	}
+	defer eventRouter.Close()
 
-	sagaHandler := handler.NewSagaHandler(authSvc)
-	router.AddConsumerHandler(
-		"auth_user_creation_failed_handler",
-		"user_creation_failed",
-		subscriber,
-		sagaHandler.HandleUserCreationFailed,
-	)
-
-	// Run Router in Background
+	// Start Event Router
 	go func() {
-		logger.Info("Starting Auth Saga Router...")
-		if err := router.Run(context.Background()); err != nil {
-			logger.Error("router failed", "error", err)
+		slog.Info("Starting Auth Saga Router...")
+		if err := eventRouter.Run(context.Background()); err != nil {
+			slog.Error("router failed", "error", err)
+			// Don't os.Exit here to allow gRPC to stay up, or do?
+			// Usually partial failure is bad, but maybe tolerant.
 		}
 	}()
 
+	// 6. gRPC Server
 	authHandler := handler.NewAuthHandler(authSvc)
-
-	// 6. gRPC Server (Shared Factory)
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		logger.Error("failed to listen", "error", err)
+		slog.Error("failed to listen", "error", err)
 		os.Exit(1)
 	}
 
-	srv := grpcutil.NewServer() // Standard options already included
+	srv := grpcutil.NewServer()
 	authv1.RegisterAuthServiceServer(srv, authHandler)
 	reflection.Register(srv)
 
-	logger.Info("Auth Service gRPC server listening on :50051")
-	if err := srv.Serve(lis); err != nil {
-		logger.Error("failed to serve", "error", err)
-		os.Exit(1)
-	}
+	// Run Server
+	go func() {
+		slog.Info("Auth Service gRPC server listening on :50051")
+		if err := srv.Serve(lis); err != nil {
+			slog.Error("failed to serve", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Graceful Shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+
+	slog.Info("Shutting down...")
+	srv.GracefulStop()
 }

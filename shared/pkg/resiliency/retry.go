@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/cenkalti/backoff/v4"
 	"google.golang.org/grpc"
@@ -50,12 +51,12 @@ func RetryUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 
 // Watermill Retry Middleware Configuration
 // Watermill has a built-in middleware, we can just provide a standard config helper
-func DefaultWatermillRetryMiddleware() middleware.Retry {
+func DefaultWatermillRetryMiddleware(logger watermill.LoggerAdapter) middleware.Retry {
 	return middleware.Retry{
 		MaxRetries:      5,
 		InitialInterval: 50 * time.Millisecond,
 		MaxInterval:     2 * time.Second,
 		Multiplier:      1.5,
-		Logger:          nil, // Will need to inject logger if we want one
+		Logger:          logger,
 	}
 }

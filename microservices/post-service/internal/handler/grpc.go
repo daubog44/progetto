@@ -46,7 +46,7 @@ func (h *PostHandler) CreatePost(ctx context.Context, req *postv1.CreatePostRequ
 	}
 
 	if err := h.repo.Create(ctx, post); err != nil {
-		h.logger.Error("failed to create post", "error", err)
+		h.logger.ErrorContext(ctx, "failed to create post", "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to create post: %v", err)
 	}
 
@@ -57,7 +57,7 @@ func (h *PostHandler) CreatePost(ctx context.Context, req *postv1.CreatePostRequ
 	msg.SetContext(ctx)
 	if err := h.publisher.Publish("post.created", msg); err != nil {
 		// Log error but proceed
-		h.logger.Error("failed to publish post.created event", "error", err, "post_id", post.ID.Hex())
+		h.logger.ErrorContext(ctx, "failed to publish post.created event", "error", err, "post_id", post.ID.Hex())
 	}
 
 	return &postv1.CreatePostResponse{
@@ -68,7 +68,7 @@ func (h *PostHandler) CreatePost(ctx context.Context, req *postv1.CreatePostRequ
 func (h *PostHandler) GetPost(ctx context.Context, req *postv1.GetPostRequest) (*postv1.GetPostResponse, error) {
 	post, err := h.repo.GetByID(ctx, req.PostId)
 	if err != nil {
-		h.logger.Warn("post not found", "error", err, "post_id", req.PostId)
+		h.logger.WarnContext(ctx, "post not found", "error", err, "post_id", req.PostId)
 		return nil, status.Errorf(codes.NotFound, "post not found: %v", err)
 	}
 	return &postv1.GetPostResponse{
@@ -83,7 +83,7 @@ func (h *PostHandler) ListPosts(ctx context.Context, req *postv1.ListPostsReques
 	}
 	posts, nextToken, err := h.repo.List(ctx, req.AuthorId, limit, req.NextPageToken)
 	if err != nil {
-		h.logger.Error("failed to list posts", "error", err)
+		h.logger.ErrorContext(ctx, "failed to list posts", "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to list posts: %v", err)
 	}
 

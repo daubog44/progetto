@@ -13,12 +13,12 @@ Vibely mira a creare uno spazio dove gli appassionati di cultura possono connett
 - **Spazio Emergenti**: Vetrina per nuovi talenti, autori e cantanti.
 
 ### Punti di Forza Tecnici:
-- **Scalabilità Orizzontale**: Ogni servizio scala indipendentemente.
-- **Polyglot Persistence**: Database specifico per ogni workload (Mongo, Cassandra, Neo4j).
-- **Hot-Reload**: Sviluppo fluido con **Tilt**.
-- **Type-Safety**: gRPC e **Buf v2** per contratti rigorosi tra servizi.
-- **Security First**: Immagini **Distroless** e architettura Zero Trust.
-- **Performance**: Elaborazione ultra-rapida con **Go** e database distribuiti.
+- **Resilienza**: Pattern avanzati (Circuit Breaker, Retry, Recovery) implementati via librerie condivise.
+- **Osservabilità Completa**: Stack LGTM (Loki, Grafana, Tempo, Mimir-compatible) con OpenTelemetry (oTel) e Alloy.
+- **Event-Driven**: Architettura reattiva basata su **Kafka** e **Watermill** (CQRS/Saga).
+- **Scalabilità**: Ogni servizio scala indipendentemente (Stateless).
+- **Polyglot Persistence**: Mongo, Postgres, Redis, Cassandra.
+- **Type-Safety**: gRPC/Protobuf per comunicazione inter-servizio.
 
 ---
 
@@ -29,13 +29,16 @@ Il progetto è organizzato come un **monorepo**.
 ```text
 ├── docs/                  # Documentazione
 ├── microservices/
-│   ├── auth/              # Gestione Utenti, JWT & Auth (Postgres + Redis)
-│   ├── post-service/      # Gestione Post & Feed (MongoDB)
-│   └── gateway-service/   # API Gateway & Routing (Huma)
+│   ├── auth/              # Gestione Utenti (Postgres + Redis + Watermill)
+│   ├── post-service/      # Gestione Post / Feed (MongoDB + Watermill)
+│   ├── gateway-service/   # API Gateway (Huma + SSE)
+│   └── messaging-service/ # Gestione Messaggi & Chat (Cassandra + Watermill)
 ├── shared/
+│   ├── pkg/               # Librerie Condivise (grpcutil, watermillutil, observability, resiliency)
 │   └── proto/             # Contratti gRPC (Buf v2)
-├── docker-compose.yml     # Infrastruttura (Kafka, DB, GUI Tools)
-├── Tiltfile               # Orchestrazione dev locale
+├── deploy/                # Configurazioni (Grafana, Loki, Tempo, Alloy)
+├── docker-compose.yml     # Infrastruttura (Kafka, DB, GUI Tools, LGTM Stack)
+├── Tiltfile               # Orchestrazione dev locale e hot-reload
 └── Taskfile.yaml          # Automazione
 ```
 

@@ -32,7 +32,7 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 
 	userID, err := h.service.Register(ctx, req.Email, req.Password, req.Username)
 	if err != nil {
-		h.logger.Error("failed to register user", "error", err, "email", req.Email)
+		h.logger.ErrorContext(ctx, "failed to register user", "error", err, "email", req.Email)
 		return nil, status.Errorf(codes.Internal, "failed to register: %v", err)
 	}
 
@@ -45,10 +45,10 @@ func (h *AuthHandler) Login(ctx context.Context, req *authv1.LoginRequest) (*aut
 	accessToken, refreshToken, expiresIn, err := h.service.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		if err == service.ErrInvalidCredentials {
-			h.logger.Warn("invalid login attempt", "email", req.Email)
+			h.logger.WarnContext(ctx, "invalid login attempt", "email", req.Email)
 			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
 		}
-		h.logger.Error("failed to login", "error", err, "email", req.Email)
+		h.logger.ErrorContext(ctx, "failed to login", "error", err, "email", req.Email)
 		return nil, status.Errorf(codes.Internal, "failed to login: %v", err)
 	}
 
@@ -63,10 +63,10 @@ func (h *AuthHandler) Refresh(ctx context.Context, req *authv1.RefreshRequest) (
 	accessToken, refreshToken, expiresIn, err := h.service.Refresh(ctx, req.RefreshToken)
 	if err != nil {
 		if err == service.ErrInvalidToken {
-			h.logger.Warn("invalid refresh token attempt")
+			h.logger.WarnContext(ctx, "invalid refresh token attempt")
 			return nil, status.Error(codes.Unauthenticated, "invalid or expired refresh token")
 		}
-		h.logger.Error("failed to refresh token", "error", err)
+		h.logger.ErrorContext(ctx, "failed to refresh token", "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to refresh token: %v", err)
 	}
 

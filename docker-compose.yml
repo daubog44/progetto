@@ -13,10 +13,29 @@ services:
       - CASSANDRA_RPC_ADDRESS=0.0.0.0
       - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
       - MAX_HEAP_SIZE=512M
+      - LOCAL_JMX=no
+      - JVM_EXTRA_OPTS=-Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false
     healthcheck:
       test: [ "CMD-SHELL", "nodetool status" ]
     volumes:
       - ./data/cassandra:/var/lib/cassandra
+    networks:
+      - microservices-net
+
+  cassandra-exporter:
+    image: criteord/cassandra_exporter:latest
+    container_name: cassandra-exporter
+    ports:
+
+      - "9500:8080" # Maps to 9500 on host to avoid conflict with Kafka UI (8080).
+    environment:
+      - CASSANDRA_EXPORTER_CONFIG_host=cassandra:7199
+      # - CASSANDRA_EXPORTER_CONFIG_user=user (if needed)
+      # - CASSANDRA_EXPORTER_CONFIG_password=password (if needed)
+      # command: [ "/cassandra_exporter-linux-amd64", "--cassandra.host", "cassandra" ] # REMOVED: Incorrect usage
+    depends_on:
+      cassandra:
+        condition: service_healthy
     networks:
       - microservices-net
 
@@ -30,8 +49,25 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - ./data/mongo:/data/db
+    networks:
+      - microservices-net
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.47.2
+    container_name: mongodb-exporter
+    command: [ "--mongodb.uri=mongodb://admin:password@mongodb:27017" ]
+    ports:
+      - "9216:9216"
+    depends_on:
+      mongodb:
+        condition: service_healthy
     networks:
       - microservices-net
 
@@ -44,6 +80,7 @@ services:
       - "7687:7687" # Bolt
     environment:
       NEO4J_AUTH: neo4j/password
+
     volumes:
       - ./data/neo4j:/data
     networks:
@@ -76,6 +113,18 @@ services:
     networks:
       - microservices-net
 
+  kafka-exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka-exporter
+    command: [ "--kafka.server=kafka:29092" ]
+    ports:
+      - "9308:9308"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
   # Kafka UI
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -102,13 +151,16 @@ services:
       target: dev
     container_name: post-service
     depends_on:
-      - mongodb
-      - kafka
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       - APP_MONGO_URI=mongodb://admin:password@mongodb:27017
       - APP_KAFKA_BROKERS=kafka:29092
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
       - OTEL_SERVICE_NAME=post-service
+      - PROMETHEUS_METRICS_PORT=9091
     networks:
       - microservices-net
 
@@ -120,9 +172,12 @@ services:
       target: dev
     container_name: auth-service
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       - APP_DB_DSN=postgres://user:password@postgres:5432/auth_db?sslmode=disable
       - APP_REDIS_ADDR=redis:6379
@@ -130,6 +185,7 @@ services:
       - APP_JWT_SECRET=supersecretkey
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
       - OTEL_SERVICE_NAME=auth-service
+      - PROMETHEUS_METRICS_PORT=9091
     networks:
       - microservices-net
 
@@ -143,9 +199,12 @@ services:
     ports:
       - "8888:8888"
     depends_on:
-      - auth-service
-      - post-service
-      - kafka
+      auth-service:
+        condition: service_started
+      post-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
     environment:
       - APP_JWT_SECRET=supersecretkey
       - POST_SERVICE=post-service:50051
@@ -153,6 +212,7 @@ services:
       - KAFKA_BROKERS=kafka:29092
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
       - OTEL_SERVICE_NAME=gateway-service
+      - PROMETHEUS_METRICS_PORT=9091
     networks:
       - microservices-net
 
@@ -162,6 +222,24 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - microservices-net
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - microservices-net
 
@@ -175,9 +253,27 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: auth_db
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d auth_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./deploy/config/postgres-init.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - microservices-net
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: postgresql://user:password@postgres:5432/auth_db?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - microservices-net
 
@@ -194,6 +290,11 @@ services:
       - CB_ADMIN_PASSWORD=Password123!
     volumes:
       - ./data/cloudbeaver:/opt/cloudbeaver/workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
     networks:
       - microservices-net
 
@@ -208,7 +309,8 @@ services:
     networks:
       - microservices-net
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   # Mongo Express (MongoDB UI)
   mongo-express:
@@ -224,13 +326,15 @@ services:
     networks:
       - microservices-net
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
 
   # --- Observability Stack ---
 
   # MinIO (Unified Storage)
   minio:
     image: minio/minio
+    container_name: minio
     command: [ "server", "/data", "--console-address", ":9001" ]
     environment:
       - MINIO_ROOT_USER=minioadmin
@@ -250,8 +354,10 @@ services:
 
   minio-setup:
     image: minio/mc
+    container_name: minio-setup
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     entrypoint: >
       /bin/sh -c " until (/usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin) do echo '...waiting for MinIO...' && sleep 1; done; /usr/bin/mc mb --ignore-existing local/loki-bucket; /usr/bin/mc mb --ignore-existing local/tempo-bucket; exit 0; "
     networks:
@@ -260,6 +366,7 @@ services:
   # Loki (Logs Backend)
   loki:
     image: grafana/loki:latest
+    container_name: loki
     user: "0:0"
     command: [ "-config.file=/etc/loki/local-config.yaml", "-log.level=warn" ]
     volumes:
@@ -278,6 +385,7 @@ services:
   # Tempo (Traces Backend)
   tempo:
     image: grafana/tempo:latest
+    container_name: tempo
     user: "0:0"
     command: [ "--config.file=/etc/tempo.yaml" ]
     volumes:
@@ -297,6 +405,7 @@ services:
   # Prometheus (Scraping + Metrics)
   prometheus:
     image: prom/prometheus:latest
+    container_name: prometheus
     volumes:
       - ./deploy/config/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -310,6 +419,8 @@ services:
       - "--web.enable-lifecycle"
     networks:
       - microservices-net
+    depends_on:
+      - cadvisor
 
   renderer-backend:
     image: grafana/grafana-image-renderer:latest
@@ -364,6 +475,7 @@ services:
   # Grafana (Visualization)
   grafana:
     image: grafana/grafana:latest
+    container_name: grafana
     environment:
       - GF_SERVER_ROOT_URL=http://localhost:3000/
       - GF_AUTH_ANONYMOUS_ENABLED=true
@@ -396,10 +508,20 @@ services:
       - ./deploy/config/grafana/grafana.ini:/etc/grafana/grafana.ini
     networks:
       - microservices-net
+    depends_on:
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      renderer:
+        condition: service_started
 
   # Alloy (Collector)
   alloy:
     image: grafana/alloy:latest
+    container_name: alloy
     command: [ "run", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy" ]
     volumes:
       - ./deploy/config/alloy.config:/etc/alloy/config.alloy
@@ -408,6 +530,8 @@ services:
       tempo:
         condition: service_started
       prometheus:
+        condition: service_started
+      loki:
         condition: service_started
     ports:
       - "12345:12345"
@@ -418,6 +542,7 @@ services:
   # Pyroscope
   pyroscope:
     image: grafana/pyroscope:latest
+    container_name: pyroscope
     ports:
       - "4040:4040"
     networks:
@@ -459,12 +584,17 @@ services:
       target: dev
     container_name: messaging-service
     depends_on:
-      - kafka
-      - cassandra
-      - messaging-migration
+      kafka:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
+      messaging-migration:
+        condition: service_completed_successfully
     environment:
       - OTEL_SERVICE_NAME=messaging-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - PROMETHEUS_METRICS_PORT=9091
+      - APP_CASSANDRA_KEYSPACE=messaging
       - APP_KAFKA_BROKERS=kafka:29092
       - APP_CASSANDRA_HOST=cassandra
       - APP_CASSANDRA_CONSISTENCY=QUORUM # Tunable consistency!
@@ -479,6 +609,7 @@ services:
     container_name: messaging-migration
     environment:
       - CASSANDRA_HOST=cassandra
+      - APP_CASSANDRA_KEYSPACE=messaging
     depends_on:
       cassandra:
         condition: service_healthy

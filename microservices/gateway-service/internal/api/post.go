@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -52,7 +52,7 @@ func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, logger *s
 			MediaUrls: input.Body.MediaURLs,
 		})
 		if err != nil {
-			logger.Error("create post failed", "error", err)
+			logger.ErrorContext(ctx, "create post failed", "error", err)
 			return nil, MapGRPCError(err)
 		}
 
@@ -74,7 +74,7 @@ func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, logger *s
 			PostId: input.ID,
 		})
 		if err != nil {
-			logger.Warn("get post failed", "error", err, "post_id", input.ID) // Warn because likely 404
+			logger.WarnContext(ctx, "get post failed", "error", err, "post_id", input.ID) // Warn because likely 404
 			return nil, MapGRPCError(err)
 		}
 
@@ -96,7 +96,7 @@ func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, logger *s
 			NextPageToken: input.NextPageToken,
 		})
 		if err != nil {
-			logger.Error("list posts failed", "error", err)
+			logger.ErrorContext(ctx, "list posts failed", "error", err)
 			return nil, MapGRPCError(err)
 		}
 
@@ -125,7 +125,7 @@ func RegisterPostRoutes(api huma.API, client postv1.PostServiceClient, logger *s
 			UserId: input.UserID,
 		})
 		if err != nil {
-			logger.Error("like post failed", "error", err)
+			logger.ErrorContext(ctx, "like post failed", "error", err)
 			return nil, MapGRPCError(err)
 		}
 
