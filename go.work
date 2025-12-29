@@ -1,12 +1,13 @@
 go 1.25.5
 
 use (
+	./microservices/auth
+	./microservices/gateway-service
 	./microservices/messaging-service
 	./microservices/post-service
-	./microservices/gateway-service
+	./microservices/social-service
 
 	./microservices/test-service
-	./microservices/auth
-	./shared/proto
 	./shared/pkg
+	./shared/proto
 )

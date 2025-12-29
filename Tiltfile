@@ -44,7 +44,6 @@ dc_resource('renderer-backend', labels=['Observability'])
 # --- Exporters ---
 dc_resource('postgres-exporter', labels=['Exporters'])
 dc_resource('cassandra-exporter', labels=['Exporters'])
-dc_resource('kafka-exporter', labels=['Exporters'])
 dc_resource('mongodb-exporter', labels=['Exporters'])
 dc_resource('redis-exporter', labels=['Exporters'])
 
@@ -125,3 +124,17 @@ docker_build(
     ]
 )
 dc_resource('messaging-service', labels=['Microservices'])
+
+# Social Service
+docker_build(
+    'social-service',
+    '.',
+    dockerfile='microservices/social-service/Dockerfile',
+    live_update=[
+        sync('./microservices/social-service', '/app/microservices/social-service'),
+        sync('./shared', '/app/shared'),
+        run('go build -o /server .'),
+        restart_container()
+    ]
+)
+dc_resource('social-service', labels=['Microservices'])

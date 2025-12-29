@@ -113,18 +113,6 @@ services:
     networks:
       - microservices-net
 
-  kafka-exporter:
-    image: danielqsj/kafka-exporter
-    container_name: kafka-exporter
-    command: [ "--kafka.server=kafka:29092" ]
-    ports:
-      - "9308:9308"
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - microservices-net
-
   # Kafka UI
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -598,6 +586,31 @@ services:
       - APP_KAFKA_BROKERS=kafka:29092
       - APP_CASSANDRA_HOST=cassandra
       - APP_CASSANDRA_CONSISTENCY=QUORUM # Tunable consistency!
+    networks:
+      - microservices-net
+
+  social-service:
+    image: social-service
+    build:
+      context: .
+      dockerfile: microservices/social-service/Dockerfile
+      target: dev
+    container_name: social-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+      neo4j:
+        condition: service_started
+    environment:
+      - APP_NAME=social-service
+      - APP_ENV=dev
+      - APP_NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=password
+      - APP_KAFKA_BROKERS=kafka:29092
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - OTEL_SERVICE_NAME=social-service
+      - PROMETHEUS_METRICS_PORT=9091
     networks:
       - microservices-net
 
