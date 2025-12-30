@@ -6,14 +6,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/username/progetto/shared/pkg/database/neo4j"
 	"github.com/username/progetto/shared/pkg/observability"
+	"github.com/username/progetto/shared/pkg/watermillutil"
 	"github.com/username/progetto/social-service/internal/config"
 	"github.com/username/progetto/social-service/internal/events"
+	"github.com/username/progetto/social-service/internal/handler"
 	"github.com/username/progetto/social-service/internal/repository"
-	"github.com/username/progetto/social-service/internal/worker"
 )
 
 func main() {
@@ -41,14 +41,6 @@ func main() {
 		}
 	}()
 
-	// 4. Initialize Metrics Server (Prometheus) - If needed, but we are moving to OTLP.
-	// However, user might still want Prometheus port for backward compatibility or simple scraping.
-	// Based on previous conversations, we are refactoring to OTLP push, so maybe not strictly needed on a separate port
-	// unless the 'observability' package does it.
-	// But let's follow the pattern if `InitProvider` doesn't start a server.
-	// Actually, `InitProvider` usually sets up the global providers.
-	// If the shared package exposes metrics via OTLP, we are good.
-
 	// 5. Connect to Neo4j
 	logger.Info("connecting to neo4j", "uri", cfg.Neo4jUri)
 	driver, err := neo4j.NewNeo4j(context.Background(), cfg.Neo4jUri, cfg.Neo4jUser, cfg.Neo4jPassword)
@@ -58,34 +50,39 @@ func main() {
 	}
 	defer driver.Close(context.Background())
 
-	// 6. Setup Repository & Consumer
-	neo4jRepo := repository.NewNeo4jRepository(driver)
-	userConsumer := worker.NewUserConsumer(neo4jRepo)
+	// 6. Kafka Publisher
+	publisher, err := watermillutil.NewKafkaPublisher(cfg.KafkaBrokers, logger)
+	if err != nil {
+		logger.Error("failed to create kafka publisher", "error", err)
+		os.Exit(1)
+	}
+	defer publisher.Close()
 
-	// 7. Setup Event Router
-	router, err := events.NewEventRouter(logger, cfg.KafkaBrokers, userConsumer)
+	// 7. Setup Repository & Consumer
+	neo4jRepo := repository.NewNeo4jRepository(driver)
+	userHandler := handler.NewUserHandler(neo4jRepo, publisher)
+
+	// 8. Setup Event Router
+	router, err := events.NewEventRouter(logger, cfg.KafkaBrokers, publisher, userHandler)
 	if err != nil {
 		logger.Error("failed to create event router", "error", err)
 		os.Exit(1)
 	}
 	defer router.Close()
 
-	// 8. Run Router
+	// 9. Standard Graceful Shutdown
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// 10. Run Router
 	go func() {
-		if err := router.Run(context.Background()); err != nil {
+		if err := router.Run(ctx); err != nil {
 			logger.Error("router failed", "error", err)
-			os.Exit(1)
 		}
 	}()
 
 	logger.Info("social-service started")
 
-	// 9. Graceful Shutdown
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	<-c
-
+	<-ctx.Done()
 	logger.Info("shutting down social-service")
-	// Give some time for ongoing requests
-	time.Sleep(1 * time.Second)
 }

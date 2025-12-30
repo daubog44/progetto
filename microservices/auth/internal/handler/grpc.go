@@ -30,14 +30,17 @@ func (h *AuthHandler) Register(ctx context.Context, req *authv1.RegisterRequest)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	userID, err := h.service.Register(ctx, req.Email, req.Password, req.Username)
+	userID, accessToken, refreshToken, expiresIn, err := h.service.Register(ctx, req.Email, req.Password, req.Username)
 	if err != nil {
 		h.logger.ErrorContext(ctx, "failed to register user", "error", err, "email", req.Email)
 		return nil, status.Errorf(codes.Internal, "failed to register: %v", err)
 	}
 
 	return &authv1.RegisterResponse{
-		UserId: userID,
+		UserId:       userID,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    expiresIn,
 	}, nil
 }
 

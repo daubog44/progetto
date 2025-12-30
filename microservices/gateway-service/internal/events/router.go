@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -13,7 +12,7 @@ import (
 type EventRouter struct {
 	Router     *message.Router
 	Subscriber message.Subscriber
-	Publisher  message.Publisher // Kept for future use, though currently unused
+	Publisher  message.Publisher
 }
 
 func NewEventRouter(logger *slog.Logger, brokers string, sseHandler *sse.Handler) (*EventRouter, error) {
@@ -24,7 +23,7 @@ func NewEventRouter(logger *slog.Logger, brokers string, sseHandler *sse.Handler
 	}
 
 	// 2. Subscriber
-	subscriber, err := watermillutil.NewKafkaSubscriber(brokers, "gateway-service-sse", logger)
+	subscriber, err := watermillutil.NewKafkaSubscriber(brokers, "gateway-service", logger)
 	if err != nil {
 		publisher.Close()
 		return nil, err
@@ -42,27 +41,8 @@ func NewEventRouter(logger *slog.Logger, brokers string, sseHandler *sse.Handler
 		return nil, err
 	}
 
-	// 4. Handlers
-	broadcastHandler := func(msg *message.Message) error {
-		// user_created payload: {user_id, ...}
-		// user_creation_failed payload: {user_id, reason}
-		// Common: has user_id
-		var payload struct {
-			UserID string `json:"user_id"`
-		}
-		// Best effort unmarshal to get ID
-		if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-			return nil // skip
-		}
-
-		// Topic name as event type
-		topic := message.SubscribeTopicFromCtx(msg.Context())
-
-		sseHandler.Broadcast(msg.Context(), payload.UserID, topic, string(msg.Payload))
-		return nil
-	}
-
-	router.AddConsumerHandler("gateway_user_creation_failed", "user_creation_failed", subscriber, broadcastHandler)
+	// Note: Direct Kafka-to-SSE handlers removed.
+	// SSE is now handled by notification-service -> Redis Pub/Sub -> sse.Handler background subscriber.
 
 	return &EventRouter{
 		Router:     router,

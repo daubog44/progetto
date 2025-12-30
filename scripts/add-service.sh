@@ -124,10 +124,14 @@ cat <<EOF > "$SERVICE_PATH/Dockerfile"
 # Builder
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
+COPY shared/go.mod shared/go.sum ./shared/
+COPY microservices/$SERVICE_NAME/go.mod microservices/$SERVICE_NAME/go.sum ./microservices/$SERVICE_NAME/
+WORKDIR /app/microservices/$SERVICE_NAME
+RUN go mod download
+WORKDIR /app
 COPY shared/ ./shared/
 COPY microservices/$SERVICE_NAME/ ./microservices/$SERVICE_NAME/
 WORKDIR /app/microservices/$SERVICE_NAME
-RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 
 # Runtime
@@ -140,10 +144,15 @@ ENTRYPOINT ["/server"]
 # Dev
 FROM golang:1.25-alpine AS dev
 WORKDIR /app
+COPY shared/pkg/go.mod shared/pkg/go.sum ./shared/pkg/
+COPY shared/proto/go.mod shared/proto/go.sum ./shared/proto/
+COPY microservices/$SERVICE_NAME/go.mod microservices/$SERVICE_NAME/go.sum ./microservices/$SERVICE_NAME/
+WORKDIR /app/microservices/$SERVICE_NAME
+RUN go mod download
+WORKDIR /app
 COPY shared/ ./shared/
 COPY microservices/$SERVICE_NAME/ ./microservices/$SERVICE_NAME/
 WORKDIR /app/microservices/$SERVICE_NAME
-RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 ENTRYPOINT ["/server"]
 EOF

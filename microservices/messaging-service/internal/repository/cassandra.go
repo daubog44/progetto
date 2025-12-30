@@ -3,13 +3,15 @@ package repository
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/username/progetto/shared/pkg/model"
 )
 
 type UserRepository interface {
-	SaveUser(ctx context.Context, userID, email, username string) error
+	SaveUser(ctx context.Context, user model.User) error
 	Close()
 }
 
@@ -21,12 +23,12 @@ func NewCassandraRepository(session *gocql.Session) UserRepository {
 	return &cassandraRepository{session: session}
 }
 
-func (r *cassandraRepository) SaveUser(ctx context.Context, userID, email, username string) error {
+func (r *cassandraRepository) SaveUser(ctx context.Context, user model.User) error {
 	// Log with context for tracing
-	slog.InfoContext(ctx, "Saving user to Cassandra", "user_id", userID, "email", email)
+	slog.InfoContext(ctx, "Saving user to Cassandra", "user_id", user.ID, "email", user.Email)
 
 	if err := r.session.Query(`INSERT INTO messaging.users (user_id, email, username, created_at) VALUES (?, ?, ?, ?)`,
-		userID, email, username, time.Now()).WithContext(ctx).Exec(); err != nil {
+		strconv.Itoa(int(user.ID)), user.Email, user.Username, time.Now()).WithContext(ctx).Exec(); err != nil {
 		return err
 	}
 	return nil

@@ -1,11 +1,13 @@
 package cassandra
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/gocql/gocql"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gocql/gocql/otelgocql"
 )
 
 type Config struct {
@@ -36,7 +38,8 @@ func NewCassandra(cfg Config, logger *slog.Logger) (*gocql.Session, error) {
 		// Optimization: TokenAware + RoundRobin
 		cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
 
-		session, err = cluster.CreateSession()
+		// OpenTelemetry Instrumentation
+		session, err = otelgocql.NewSessionWithTracing(context.Background(), cluster)
 		if err == nil {
 			return session, nil
 		}

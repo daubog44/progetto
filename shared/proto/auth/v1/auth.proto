@@ -21,6 +21,9 @@ message RegisterRequest {
 
 message RegisterResponse {
   string user_id = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  int64 expires_in = 4;
 }
 
 message LoginRequest {

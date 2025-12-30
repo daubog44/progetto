@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/username/progetto/post-service/internal/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -90,6 +91,22 @@ func NewMongoUserRepository(db *mongo.Database) UserRepository {
 
 func (r *mongoUserRepository) Save(ctx context.Context, user *model.User) error {
 	opts := options.Replace().SetUpsert(true)
-	_, err := r.collection.ReplaceOne(ctx, bson.M{"_id": user.ID}, user, opts)
+
+	// Persist as string _id for compatibility with other services (NoSQL) and legacy data.
+	type UserWrapper struct {
+		ID       string `bson:"_id"`
+		Username string `bson:"username"`
+		Email    string `bson:"email"`
+		Role     string `bson:"role"`
+	}
+
+	wrapper := UserWrapper{
+		ID:       strconv.Itoa(int(user.ID)),
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
+	}
+
+	_, err := r.collection.ReplaceOne(ctx, bson.M{"_id": wrapper.ID}, wrapper, opts)
 	return err
 }

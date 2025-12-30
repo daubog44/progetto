@@ -31,3 +31,17 @@ tasks:
     desc: Run K6 load test
     cmds:
       - ./scripts/run-load-test.sh
+
+  cleanup:
+    desc: Cleanup unused resources
+    cmds:
+      - ./scripts/docker-cleanup.sh
+    
+  clean-db:
+    desc: Remove all data from application databases (Cassandra, Mongo, Neo4j, Postgres). Requires sudo.
+    cmds:
+      - task: down
+      - cmd: echo "⚠️  Removing database data..."
+      - cmd: sudo rm -rf data/cassandra data/mongo data/neo4j data/postgres
+      - cmd: echo "✅ Database data removed."
+    

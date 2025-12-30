@@ -19,7 +19,10 @@ type RegisterInput struct {
 
 type RegisterOutput struct {
 	Body struct {
-		UserID string `json:"user_id"`
+		UserID       string `json:"user_id"`
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int64  `json:"expires_in"`
 	}
 }
 
@@ -71,6 +74,9 @@ func RegisterAuthRoutes(api huma.API, client authv1.AuthServiceClient, logger *s
 		}
 		out := &RegisterOutput{}
 		out.Body.UserID = resp.UserId
+		out.Body.AccessToken = resp.AccessToken
+		out.Body.RefreshToken = resp.RefreshToken
+		out.Body.ExpiresIn = resp.ExpiresIn
 		return out, nil
 	})
 

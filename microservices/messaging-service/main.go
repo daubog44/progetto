@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/username/progetto/messaging-service/internal/config"
 	"github.com/username/progetto/messaging-service/internal/events"
 	"github.com/username/progetto/messaging-service/internal/handler"
 	"github.com/username/progetto/messaging-service/internal/repository"
@@ -17,11 +18,17 @@ import (
 )
 
 func main() {
+	// 0. Load Config
+	cfg := config.Load()
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
 	// Init Observability
 	obsCfg := observability.LoadConfigFromEnv()
+	obsCfg.ServiceName = cfg.OtelServiceName
+	obsCfg.OTLPEndpoint = cfg.OtelExporterEndpoint
+
 	shutdown, err := observability.Init(context.Background(), obsCfg)
 	if err != nil {
 		slog.Error("failed to init observability", "error", err)
@@ -32,35 +39,12 @@ func main() {
 		}
 	}()
 
-	// Config - Strict Mode (Panic if missing)
-	kafkaBrokers := os.Getenv("APP_KAFKA_BROKERS")
-	if kafkaBrokers == "" {
-		panic("APP_KAFKA_BROKERS environment variable is not set")
-	}
-	cassandraHost := os.Getenv("APP_CASSANDRA_HOST")
-	if cassandraHost == "" {
-		panic("APP_CASSANDRA_HOST environment variable is not set")
-	}
-	// Consistency can have a default if needed, or strict. Let's keep default for now as it's less critical?
-	// User said "sostituisci tutte le parti in cui ha inserito una logica simile".
-	// Let's enforce strictness where reasonable or critical.
-	consistency := os.Getenv("APP_CASSANDRA_CONSISTENCY")
-	if consistency == "" {
-		consistency = "QUORUM" // Default is acceptable here as it's a tuning param
-	}
-
-	cassandraKeyspace := os.Getenv("APP_CASSANDRA_KEYSPACE")
-	if cassandraKeyspace == "" {
-		panic("APP_CASSANDRA_KEYSPACE environment variable is not set")
-	}
-
-	// Retry loop for Cassandra connection
-	// Retry loop for Cassandra connection
+	// 1. Connect to Cassandra
 	session, err := cassandra.NewCassandra(cassandra.Config{
-		Host:           cassandraHost,
-		Consistency:    consistency,
+		Host:           cfg.CassandraHost,
+		Consistency:    cfg.CassandraConsistency,
 		ConnectTimeout: 10 * time.Second,
-		Keyspace:       cassandraKeyspace,
+		Keyspace:       cfg.CassandraKeyspace,
 	}, logger)
 	if err != nil {
 		slog.Error("failed to connect to cassandra", "error", err)
@@ -71,7 +55,7 @@ func main() {
 	repo := repository.NewCassandraRepository(session)
 
 	// Watermill Publisher (Shared Factory)
-	publisher, err := watermillutil.NewKafkaPublisher(kafkaBrokers, logger)
+	publisher, err := watermillutil.NewKafkaPublisher(cfg.KafkaBrokers, logger)
 	if err != nil {
 		slog.Error("failed to create kafka publisher", "error", err)
 		os.Exit(1)
@@ -79,27 +63,26 @@ func main() {
 	defer publisher.Close()
 
 	// Handler
-	client := &handler.Client{
+	handler := &handler.Handler{
 		Repo:      repo,
 		Publisher: publisher,
-		Logger:    logger.With("component", "messaging_client"),
+		Logger:    logger.With("component", "messaging_handler"),
 	}
 
 	// Watermill Event Router
-	eventRouter, err := events.NewEventRouter(logger, kafkaBrokers, client)
+	eventRouter, err := events.NewEventRouter(logger, cfg.KafkaBrokers, handler)
 	if err != nil {
 		slog.Error("failed to create event router", "error", err)
 		os.Exit(1)
 	}
 	defer eventRouter.Close()
 
-	// Run Router
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
+	// Standard Graceful Shutdown
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	slog.Info("Starting messaging-service router...")
 	if err := eventRouter.Run(ctx); err != nil {
 		slog.Error("router failed", "error", err)
-		os.Exit(1)
 	}
 }

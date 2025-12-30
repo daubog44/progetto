@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"github.com/username/progetto/shared/pkg/model"
 )
 
 type Neo4jRepository struct {
@@ -16,7 +18,7 @@ func NewNeo4jRepository(driver neo4j.DriverWithContext) *Neo4jRepository {
 }
 
 // CreatePerson creates a new Person node in Neo4j.
-func (r *Neo4jRepository) CreatePerson(ctx context.Context, userID, username, email string) error {
+func (r *Neo4jRepository) CreatePerson(ctx context.Context, user model.User) error {
 	session := r.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close(ctx)
 
@@ -28,9 +30,9 @@ func (r *Neo4jRepository) CreatePerson(ctx context.Context, userID, username, em
 			RETURN p
 		`
 		params := map[string]any{
-			"userID":   userID,
-			"username": username,
-			"email":    email,
+			"userID":   strconv.Itoa(int(user.ID)),
+			"username": user.Username,
+			"email":    user.Email,
 		}
 
 		result, err := tx.Run(ctx, query, params)

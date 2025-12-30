@@ -1,7 +1,166 @@
 services:
-  # --- Databases ---
+  # --- Microservices (Orchestrated by Tilt) ---
 
-  # Cassandra
+  messaging-service:
+    image: messaging-service
+    build:
+      context: .
+      dockerfile: microservices/messaging-service/Dockerfile
+      target: dev
+    container_name: messaging-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
+      messaging-migration:
+        condition: service_completed_successfully
+    environment:
+      - OTEL_SERVICE_NAME=messaging-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - PROMETHEUS_METRICS_PORT=${PROMETHEUS_METRICS_PORT}
+      - APP_CASSANDRA_KEYSPACE=${APP_CASSANDRA_KEYSPACE}
+      - APP_KAFKA_BROKERS=${APP_KAFKA_BROKERS}
+      - APP_CASSANDRA_HOST=${APP_CASSANDRA_HOST}
+      - APP_CASSANDRA_CONSISTENCY=${APP_CASSANDRA_CONSISTENCY}
+    networks:
+      - microservices-net
+
+  social-service:
+    image: social-service
+    build:
+      context: .
+      dockerfile: microservices/social-service/Dockerfile
+      target: dev
+    container_name: social-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    environment:
+      - APP_NEO4J_URI=${APP_NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - APP_KAFKA_BROKERS=${APP_KAFKA_BROKERS}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_SERVICE_NAME=social-service
+      - PROMETHEUS_METRICS_PORT=${PROMETHEUS_METRICS_PORT}
+    networks:
+      - microservices-net
+
+  messaging-migration:
+    image: messaging-migration
+    build:
+      context: .
+      dockerfile: microservices/messaging-service/build/package/migrate/Dockerfile
+    container_name: messaging-migration
+    environment:
+      - CASSANDRA_HOST=${APP_CASSANDRA_HOST}
+      - APP_CASSANDRA_KEYSPACE=${APP_CASSANDRA_KEYSPACE}
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  notification-service:
+    image: notification-service
+    build:
+      context: .
+      dockerfile: microservices/notification-service/Dockerfile
+      target: dev
+    container_name: notification-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - OTEL_SERVICE_NAME=notification-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - APP_KAFKA_BROKERS=${APP_KAFKA_BROKERS}
+      - APP_REDIS_ADDR=${APP_REDIS_ADDR}
+      - PROMETHEUS_METRICS_PORT=${PROMETHEUS_METRICS_PORT}
+    networks:
+      - microservices-net
+
+  post-service:
+    image: post-service
+    build:
+      context: .
+      dockerfile: microservices/post-service/Dockerfile
+      target: dev
+    container_name: post-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      - APP_MONGO_URI=${APP_MONGO_URI}
+      - APP_KAFKA_BROKERS=${APP_KAFKA_BROKERS}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_SERVICE_NAME=post-service
+      - PROMETHEUS_METRICS_PORT=${PROMETHEUS_METRICS_PORT}
+    networks:
+      - microservices-net
+
+  auth-service:
+    image: auth-service
+    build:
+      context: .
+      dockerfile: microservices/auth/Dockerfile
+      target: dev
+    container_name: auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      - APP_DB_DSN=${APP_DB_DSN}
+      - APP_REDIS_ADDR=${APP_REDIS_ADDR}
+      - APP_KAFKA_BROKERS=${APP_KAFKA_BROKERS}
+      - APP_JWT_SECRET=${APP_JWT_SECRET}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_SERVICE_NAME=auth-service
+      - PROMETHEUS_METRICS_PORT=${PROMETHEUS_METRICS_PORT}
+    networks:
+      - microservices-net
+
+  gateway-service:
+    image: gateway-service
+    build:
+      context: .
+      dockerfile: microservices/gateway-service/Dockerfile
+      target: dev
+    container_name: gateway-service
+    ports:
+      - "8888:8888"
+    depends_on:
+      auth-service:
+        condition: service_started
+      post-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      - APP_JWT_SECRET=${APP_JWT_SECRET}
+      - POST_SERVICE=${POST_SERVICE_ADDR}
+      - AUTH_SERVICE=${AUTH_SERVICE_ADDR}
+      - KAFKA_BROKERS=${APP_KAFKA_BROKERS}
+      - APP_REDIS_ADDR=${APP_REDIS_ADDR}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_SERVICE_NAME=gateway-service
+      - PROMETHEUS_METRICS_PORT=${PROMETHEUS_METRICS_PORT}
+    networks:
+      - microservices-net
+    # --- Databases ---
+
+    # Cassandra
   cassandra:
     image: cassandra:latest
     container_name: cassandra
@@ -47,8 +206,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ADMIN_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ADMIN_PASSWORD}
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
@@ -62,7 +221,7 @@ services:
   mongodb-exporter:
     image: percona/mongodb_exporter:0.47.2
     container_name: mongodb-exporter
-    command: [ "--mongodb.uri=mongodb://admin:password@mongodb:27017" ]
+    command: [ "--mongodb.uri=mongodb://${MONGO_ADMIN_USER}:${MONGO_ADMIN_PASSWORD}@mongodb:27017" ]
     ports:
       - "9216:9216"
     depends_on:
@@ -79,7 +238,12 @@ services:
       - "7474:7474" # HTTP
       - "7687:7687" # Bolt
     environment:
-      NEO4J_AUTH: neo4j/password
+      NEO4J_AUTH: ${NEO4J_USER}/${NEO4J_PASSWORD}
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
     volumes:
       - ./data/neo4j:/data
@@ -129,81 +293,6 @@ services:
     networks:
       - microservices-net
 
-  # --- Microservices (Orchestrated by Tilt) ---
-
-  post-service:
-    image: post-service
-    build:
-      context: .
-      dockerfile: microservices/post-service/Dockerfile
-      target: dev
-    container_name: post-service
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    environment:
-      - APP_MONGO_URI=mongodb://admin:password@mongodb:27017
-      - APP_KAFKA_BROKERS=kafka:29092
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
-      - OTEL_SERVICE_NAME=post-service
-      - PROMETHEUS_METRICS_PORT=9091
-    networks:
-      - microservices-net
-
-  auth-service:
-    image: auth-service
-    build:
-      context: .
-      dockerfile: microservices/auth/Dockerfile
-      target: dev
-    container_name: auth-service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    environment:
-      - APP_DB_DSN=postgres://user:password@postgres:5432/auth_db?sslmode=disable
-      - APP_REDIS_ADDR=redis:6379
-      - APP_KAFKA_BROKERS=kafka:29092
-      - APP_JWT_SECRET=supersecretkey
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
-      - OTEL_SERVICE_NAME=auth-service
-      - PROMETHEUS_METRICS_PORT=9091
-    networks:
-      - microservices-net
-
-  gateway-service:
-    image: gateway-service
-    build:
-      context: .
-      dockerfile: microservices/gateway-service/Dockerfile
-      target: dev
-    container_name: gateway-service
-    ports:
-      - "8888:8888"
-    depends_on:
-      auth-service:
-        condition: service_started
-      post-service:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    environment:
-      - APP_JWT_SECRET=supersecretkey
-      - POST_SERVICE=post-service:50051
-      - AUTH_SERVICE=auth-service:50051
-      - KAFKA_BROKERS=kafka:29092
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
-      - OTEL_SERVICE_NAME=gateway-service
-      - PROMETHEUS_METRICS_PORT=9091
-    networks:
-      - microservices-net
-
   # Redis
   redis:
     image: redis:alpine
@@ -238,9 +327,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: auth_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U user -d auth_db" ]
       interval: 5s
@@ -258,7 +347,7 @@ services:
     ports:
       - "9187:9187"
     environment:
-      DATA_SOURCE_NAME: postgresql://user:password@postgres:5432/auth_db?sslmode=disable
+      DATA_SOURCE_NAME: ${APP_DB_DSN}
     depends_on:
       postgres:
         condition: service_healthy
@@ -438,7 +527,7 @@ services:
       # TIMEZONE
       - BROWSER_TIMEZONE=Europe/Rome
     volumes:
-      - ./renderer-data:/data
+      - ./data/renderer-data:/data
     networks:
       - microservices-net
     # Internal backend doesn't need host exposure, but useful for debug on distinct port
@@ -563,71 +652,6 @@ services:
     networks:
       - microservices-net
     profiles: [ "tools" ]
-
-  messaging-service:
-    image: messaging-service
-    build:
-      context: .
-      dockerfile: microservices/messaging-service/Dockerfile
-      target: dev
-    container_name: messaging-service
-    depends_on:
-      kafka:
-        condition: service_healthy
-      cassandra:
-        condition: service_healthy
-      messaging-migration:
-        condition: service_completed_successfully
-    environment:
-      - OTEL_SERVICE_NAME=messaging-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
-      - PROMETHEUS_METRICS_PORT=9091
-      - APP_CASSANDRA_KEYSPACE=messaging
-      - APP_KAFKA_BROKERS=kafka:29092
-      - APP_CASSANDRA_HOST=cassandra
-      - APP_CASSANDRA_CONSISTENCY=QUORUM # Tunable consistency!
-    networks:
-      - microservices-net
-
-  social-service:
-    image: social-service
-    build:
-      context: .
-      dockerfile: microservices/social-service/Dockerfile
-      target: dev
-    container_name: social-service
-    depends_on:
-      kafka:
-        condition: service_healthy
-      neo4j:
-        condition: service_started
-    environment:
-      - APP_NAME=social-service
-      - APP_ENV=dev
-      - APP_NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=password
-      - APP_KAFKA_BROKERS=kafka:29092
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
-      - OTEL_SERVICE_NAME=social-service
-      - PROMETHEUS_METRICS_PORT=9091
-    networks:
-      - microservices-net
-
-  messaging-migration:
-    image: messaging-migration
-    build:
-      context: .
-      dockerfile: microservices/messaging-service/build/package/migrate/Dockerfile
-    container_name: messaging-migration
-    environment:
-      - CASSANDRA_HOST=cassandra
-      - APP_CASSANDRA_KEYSPACE=messaging
-    depends_on:
-      cassandra:
-        condition: service_healthy
-    networks:
-      - microservices-net
 
 networks:
   microservices-net:

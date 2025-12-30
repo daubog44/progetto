@@ -17,9 +17,14 @@ ENTRYPOINT ["/server"]
 # Dev
 FROM golang:1.25-alpine AS dev
 WORKDIR /app
+COPY shared/pkg/go.mod shared/pkg/go.sum ./shared/pkg/
+COPY shared/proto/go.mod shared/proto/go.sum ./shared/proto/
+COPY microservices/auth/go.mod microservices/auth/go.sum ./microservices/auth/
+WORKDIR /app/microservices/auth
+RUN go mod download
+WORKDIR /app
 COPY shared/ ./shared/
 COPY microservices/auth/ ./microservices/auth/
 WORKDIR /app/microservices/auth
-RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -o /server .
 ENTRYPOINT ["/server"]

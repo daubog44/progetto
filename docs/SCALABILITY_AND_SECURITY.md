@@ -69,16 +69,8 @@ We implement a robust dual-token system:
     -   *Risk*: This delegates connection management entirely to the DB server. Ensure Postgres `max_connections` and OS file descriptors (`ulimit`) are high enough.
 
 ### Bottlenecks & Anti-Patterns to Fix
-1.  **Schema Migration on Startup (Race Condition)**:
-    -   *Current*: `messaging-service` creates Keyspace/Table on startup.
-    -   *Problem*: If we scale to 5 replicas starting simultaneously, they race to create the table, potentially causing startup crases.
-    -   *Fix*: Move schema creation to a separate K8s Job or migration tool (e.g., `golang-migrate`) that runs *before* the service starts.
-2.  **Hardcoded Consistency**:
-    -   *Current*: Cassandra uses `Quorum` hardcoded in code.
-    -   *Fix*: Move this to configuration (`env` vars) to allow tuning Consistency vs Availability without recompiling.
 - **Redis (Cache/Session)**: Use Redis Cluster mode.
 
 ### Operational Readiness
-- [ ] **Dead Letter Queues (DLQ)**: Configure Kafka and Watermill to send permanently failed messages to a DLQ for manual inspection.
 - [ ] **Graceful Shutdown**: Ensure all services handle SIGTERM to finish in-flight requests before stopping.
 - [ ] **Rate Limiting**: Implement per-IP or per-User rate limiting at the Gateway level (Redis-backed).

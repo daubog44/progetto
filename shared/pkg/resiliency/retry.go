@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/cenkalti/backoff/v4"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -49,14 +49,58 @@ func RetryUnaryClientInterceptor() grpc.UnaryClientInterceptor {
 	}
 }
 
-// Watermill Retry Middleware Configuration
-// Watermill has a built-in middleware, we can just provide a standard config helper
-func DefaultWatermillRetryMiddleware(logger watermill.LoggerAdapter) middleware.Retry {
-	return middleware.Retry{
-		MaxRetries:      5,
-		InitialInterval: 50 * time.Millisecond,
-		MaxInterval:     2 * time.Second,
-		Multiplier:      1.5,
-		Logger:          logger,
+// SmartRetryMiddleware implements a retry logic that respects PermanentError.
+func SmartRetryMiddleware(logger watermill.LoggerAdapter) message.HandlerMiddleware {
+	return func(h message.HandlerFunc) message.HandlerFunc {
+		return func(msg *message.Message) ([]*message.Message, error) {
+			maxRetries := 5
+			initialInterval := 50 * time.Millisecond
+			maxInterval := 2 * time.Second
+			multiplier := 1.5
+
+			currentInterval := initialInterval
+			var err error
+			var events []*message.Message
+
+			for i := 0; i <= maxRetries; i++ {
+				events, err = h(msg)
+				if err == nil {
+					return events, nil
+				}
+
+				// Check if error is Permanent
+				if IsPermanentError(err) {
+					// Unwrap and return immediately to allow Poison Queue to handle it
+					return nil, err
+				}
+
+				if i == maxRetries {
+					break // Bubbles up final error
+				}
+
+				// Log retry
+				logger.Error("Error processing message, retrying...", err, map[string]interface{}{
+					"retry_no":     i + 1,
+					"max_retries":  maxRetries,
+					"wait_time":    currentInterval,
+					"message_uuid": msg.UUID,
+				})
+
+				// Wait
+				select {
+				case <-time.After(currentInterval):
+				case <-msg.Context().Done():
+					return nil, msg.Context().Err()
+				}
+
+				// Backoff
+				currentInterval = time.Duration(float64(currentInterval) * multiplier)
+				if currentInterval > maxInterval {
+					currentInterval = maxInterval
+				}
+			}
+
+			return nil, err
+		}
 	}
 }

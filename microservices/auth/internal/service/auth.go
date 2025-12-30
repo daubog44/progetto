@@ -25,7 +25,7 @@ var (
 )
 
 type AuthService interface {
-	Register(ctx context.Context, email, password, username string) (string, error)
+	Register(ctx context.Context, email, password, username string) (string, string, string, int64, error)
 	Login(ctx context.Context, email, password string) (string, string, int64, error)
 	Refresh(ctx context.Context, refreshToken string) (string, string, int64, error)
 	CompensateUserCreation(ctx context.Context, userID string) error
@@ -56,11 +56,11 @@ func NewAuthService(
 	}
 }
 
-// Register creates a user and publishes an event
-func (s *authService) Register(ctx context.Context, email, password, username string) (string, error) {
+// Register creates a user, publishes an event, and returns tokens
+func (s *authService) Register(ctx context.Context, email, password, username string) (string, string, string, int64, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", err
+		return "", "", "", 0, err
 	}
 
 	// Dynamic Username
@@ -75,7 +75,7 @@ func (s *authService) Register(ctx context.Context, email, password, username st
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
-		return "", err
+		return "", "", "", 0, err
 	}
 
 	// Publish Event
@@ -86,14 +86,25 @@ func (s *authService) Register(ctx context.Context, email, password, username st
 	}
 	payloadBytes, _ := json.Marshal(eventPayload)
 	msg := message.NewMessage(watermill.NewUUID(), payloadBytes)
+	msg.Metadata.Set("user_id", fmt.Sprintf("%d", user.ID))
 	msg.SetContext(ctx)
 
 	if err := s.publisher.Publish("user_created", msg); err != nil {
 		// Log error but don't fail registration? Ideally we should use outbox pattern, but for now simple publish
-		return fmt.Sprintf("%d", user.ID), fmt.Errorf("failed to publish event: %w", err)
+		// We still return tokens because user is created
+		s.generateTokens(ctx, user.ID) // ignoring error for brevity in error path? No, let's just error out or return user without tokens?
+		// Better to just return error if event fails if we want consistency, or ignore event failure.
+		// Given the code before was returning user ID even on publish error, we should probably stick to that or improve.
+		// Original code: return fmt.Sprintf("%d", user.ID), fmt.Errorf("failed to publish event: %w", err)
+		// Let's keep failure behavior
+		return fmt.Sprintf("%d", user.ID), "", "", 0, fmt.Errorf("failed to publish event: %w", err)
 	}
 
-	return fmt.Sprintf("%d", user.ID), nil
+	accessToken, refreshToken, expiresIn, err := s.generateTokens(ctx, user.ID)
+	if err != nil {
+		return "", "", "", 0, err
+	}
+	return fmt.Sprintf("%d", user.ID), accessToken, refreshToken, expiresIn, nil
 }
 
 func (s *authService) Login(ctx context.Context, email, password string) (string, string, int64, error) {

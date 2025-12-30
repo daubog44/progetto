@@ -1,6 +1,7 @@
 package grpcutil
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/username/progetto/shared/pkg/resiliency"
@@ -17,6 +18,8 @@ func NewServer(opts ...grpc.ServerOption) *grpc.Server {
 	baseOpts := []grpc.ServerOption{
 		// OTel Stats Handler for Metrics & Tracing
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		// Logging Interceptor (Standard)
+		grpc.ChainUnaryInterceptor(UnaryServerLoggingInterceptor(slog.Default())),
 		// Keepalive to prevent load balancer disconnects
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionIdle: 5 * time.Minute,
@@ -44,7 +47,6 @@ func NewClient(target string, cbName string, opts ...grpc.DialOption) (*grpc.Cli
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		// Chained Interceptors for Resiliency
 		grpc.WithUnaryInterceptor(resiliency.CircuitBreakerUnaryClientInterceptor(cb)),
-		grpc.WithChainUnaryInterceptor(resiliency.RetryUnaryClientInterceptor()),
 	}
 	baseOpts = append(baseOpts, opts...)
 

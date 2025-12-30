@@ -1,6 +1,7 @@
 go 1.25.5
 
 use (
+	./microservices/notification-service
 	./microservices/auth
 	./microservices/gateway-service
 	./microservices/messaging-service

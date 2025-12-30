@@ -138,3 +138,16 @@ docker_build(
     ]
 )
 dc_resource('social-service', labels=['Microservices'])
+# notification-service
+docker_build(
+    'notification-service',
+    '.',
+    dockerfile='microservices/notification-service/Dockerfile',
+    live_update=[
+        sync('./microservices/notification-service', '/app/microservices/notification-service'),
+        sync('./shared', '/app/shared'),
+        run('go build -o /server .'),
+        restart_container()
+    ]
+)
+dc_resource('notification-service', labels=['Microservices'])

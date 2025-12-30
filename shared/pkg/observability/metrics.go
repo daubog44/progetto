@@ -55,7 +55,7 @@ func initMeter(ctx context.Context, cfg Config) (func(context.Context) error, er
 }
 
 // Middleware returns a replacement for the http handler that tracks metrics and traces.
-func Middleware(next http.Handler) http.Handler {
+func MiddlewareMetrics(next http.Handler) http.Handler {
 	meter := otel.GetMeterProvider().Meter("github.com/daubog44/progetto/shared/pkg/observability")
 	tracer := otel.GetTracerProvider().Tracer("github.com/daubog44/progetto/shared/pkg/observability")
 
@@ -127,4 +127,10 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Flush() {
+	if flusher, ok := rw.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
 }

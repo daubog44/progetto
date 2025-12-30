@@ -3,22 +3,19 @@ package handler
 import (
 	"encoding/json"
 	"log/slog"
+	"strconv"
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/username/progetto/messaging-service/internal/repository"
+	"github.com/username/progetto/shared/pkg/model"
+	"github.com/username/progetto/shared/pkg/resiliency"
 )
 
-type Client struct {
+type Handler struct {
 	Repo      repository.UserRepository
 	Publisher message.Publisher
 	Logger    *slog.Logger
-}
-
-type UserCreatedEvent struct {
-	UserID   string `json:"user_id"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
 }
 
 // UserCreatedPayload is the structure for the user created event payload.
@@ -28,43 +25,72 @@ type UserCreatedPayload struct {
 	Username string `json:"username"`
 }
 
-func (c *Client) HandleUserCreated(msg *message.Message) error {
+func (h *Handler) HandleUserCreated(msg *message.Message) error {
 	var payload UserCreatedPayload
 	if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-		c.Logger.ErrorContext(msg.Context(), "failed to unmarshal message", "error", err)
+		h.Logger.ErrorContext(msg.Context(), "failed to unmarshal message", "error", err)
 		return nil // Ack, don't retry bad data
 	}
 
-	c.Logger.InfoContext(msg.Context(), "Received user_created event", "user_id", payload.UserID)
+	h.Logger.InfoContext(msg.Context(), "Received user_created event", "user_id", payload.UserID)
 
-	// Save to Cassandra with Retry (Idempotent)
-	// We use the shared Retry Middleware on the router, so if this fails, we return error and let Watermill retry.
-	// BUT, for the "Saga Compensation", if we fail permanently, we might want to publish a failure event.
-	// The standard way with Watermill Middleware is: if handler returns error, it retries. If max retries reached, it goes to DLQ or Drops.
-	// It doesn't automatically publish a "Compensation Event".
-	// So we might want to keep the "internal retry" or use a sophisticated error handler.
-	// For simplicity in this step: We rely on middleware for transient errors.
-	if err := c.Repo.SaveUser(msg.Context(), payload.UserID, payload.Email, payload.Username); err != nil {
-		c.Logger.ErrorContext(msg.Context(), "failed to save user to cassandra", "error", err, "user_id", payload.UserID)
+	// Parse and map to shared model
+	userIDUint, err := strconv.Atoi(payload.UserID)
+	if err != nil {
+		h.Logger.ErrorContext(msg.Context(), "failed to parse user_id", "error", err)
+
+		// If we failed to handle it (e.g. can't extract ID at all), we treat it as Permanent Error
+		// This stops retry and sends to Poison Queue (dead_letters)
+		// SagaPoisonMiddleware will catch this and publish 'user_creation_failed' using HandleUserCreationFailure
+		return resiliency.NewPermanentError(err)
+	}
+
+	user := model.User{
+		ID:       uint(userIDUint),
+		Username: payload.Username,
+		Email:    payload.Email,
+	}
+
+	if err := h.Repo.SaveUser(msg.Context(), user); err != nil {
+		h.Logger.ErrorContext(msg.Context(), "failed to save user to cassandra", "error", err, "user_id", payload.UserID)
 		return err // Let middleware retry
 	}
 
-	c.Logger.InfoContext(msg.Context(), "Successfully saved user to cassandra", "user_id", payload.UserID)
+	// Emit user_synced_messaging event
+	syncPayload := struct {
+		UserID string `json:"user_id"`
+	}{
+		UserID: payload.UserID,
+	}
+	syncBytes, _ := json.Marshal(syncPayload)
+	syncMsg := message.NewMessage(watermill.NewUUID(), syncBytes)
+	syncMsg.SetContext(msg.Context())
+
+	if err := h.Publisher.Publish("user_synced_messaging", syncMsg); err != nil {
+		h.Logger.ErrorContext(msg.Context(), "failed to publish user_synced_messaging event", "error", err)
+		return err // Retry
+	}
+
+	h.Logger.InfoContext(msg.Context(), "Successfully saved user to cassandra and emitted user_synced_messaging", "user_id", payload.UserID)
 	return nil
 }
 
 // HandleUserCreationFailure constructs a compensation message for user creation failure.
-func (c *Client) HandleUserCreationFailure(err error, msg *message.Message) (string, *message.Message, error) {
-	// 1. Extract UserID from original message (best effort)
-	var payload UserCreatedPayload
-	_ = json.Unmarshal(msg.Payload, &payload) // Ignore error, if we can't parse, user_id might be empty
+func (h *Handler) HandleUserCreationFailure(err error, msg *message.Message) (string, *message.Message, error) {
+	// 1. Extract UserID from metadata (preferred) or payload (fallback)
+	userID := msg.Metadata.Get("user_id")
+	if userID == "" {
+		var payload UserCreatedPayload
+		_ = json.Unmarshal(msg.Payload, &payload)
+		userID = payload.UserID
+	}
 
 	// 2. Create Failure Payload
 	failurePayload := struct {
 		UserID string `json:"user_id"`
 		Reason string `json:"reason"`
 	}{
-		UserID: payload.UserID,
+		UserID: userID,
 		Reason: err.Error(),
 	}
 
@@ -75,6 +101,8 @@ func (c *Client) HandleUserCreationFailure(err error, msg *message.Message) (str
 
 	// 3. Create Message
 	failMsg := message.NewMessage(watermill.NewUUID(), bytes)
+	failMsg.Metadata.Set("user_id", userID)
+
 	// Context is set by Middleware (or we can copy it here just in case, but middleware handles it)
 
 	// 4. Return Topic and Message

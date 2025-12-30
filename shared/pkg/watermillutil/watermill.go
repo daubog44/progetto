@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill-kafka/v3/pkg/kafka"
 	"github.com/ThreeDotsLabs/watermill/components/metrics"
@@ -13,6 +14,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/username/progetto/shared/pkg/deduplication"
 	"github.com/username/progetto/shared/pkg/observability"
 	"github.com/username/progetto/shared/pkg/resiliency"
 )
@@ -164,7 +166,13 @@ type RouterOptions struct {
 
 	// SagaMiddlewareConfig defines configuration for Saga Poison Middleware.
 	// Map of Topic -> SagaFailureHandler
+	// SagaRoutes map[string]SagaFailureHandler
 	SagaRoutes map[string]SagaFailureHandler
+
+	// Deduplicator enables message deduplication support. Optional.
+	Deduplicator deduplication.Deduplicator
+	// DeduplicationTTL is the TTL for deduplication keys. Default 1h.
+	DeduplicationTTL time.Duration
 }
 
 // SagaFailureHandler receives the error and the original message, and returns a compensation message and its topic.
@@ -193,6 +201,9 @@ func NewRouter(logger *slog.Logger, options RouterOptions) (*message.Router, err
 	// --- 1. Recovery (Bottom/First) ---
 	router.AddMiddleware(middleware.Recoverer)
 
+	// --- 1.5 Logging (After Recovery, before specific logic) ---
+	router.AddMiddleware(LoggingMiddleware(logger))
+
 	// --- 2. Poison / Saga Compensation (Before Retry) ---
 	// If Retry fails N times, the error bubbles up to Poison/Saga middleware.
 	// It catches the error, publishes to DLQ/Failure Topic, and ACKs the original message.
@@ -213,9 +224,18 @@ func NewRouter(logger *slog.Logger, options RouterOptions) (*message.Router, err
 		router.AddMiddleware(SagaPoisonMiddleware(options.Publisher, options.SagaRoutes, logger))
 	}
 
+	// Message Deduplication
+	if options.Deduplicator != nil {
+		ttl := options.DeduplicationTTL
+		if ttl == 0 {
+			ttl = time.Minute
+		}
+		router.AddMiddleware(DeduplicationMiddleware(options.Deduplicator, ttl, logger))
+	}
+
 	// --- 3. Retry (After Poison) ---
-	// Retries transient errors. If exhausted, it bubbles up.
-	router.AddMiddleware(resiliency.DefaultWatermillRetryMiddleware(wLogger).Middleware)
+	// Retries transient errors. If exhausted or PermanentError, it bubbles up.
+	router.AddMiddleware(resiliency.SmartRetryMiddleware(wLogger))
 
 	// --- 4. Circuit Breaker (Top/Last) ---
 	// Fails fast before even trying if unhealthy.
@@ -316,6 +336,70 @@ func SagaPoisonMiddleware(publisher message.Publisher, routes map[string]SagaFai
 
 			// Return nil to ACK original message since we handled the failure via compensation
 			return nil, nil
+		}
+	}
+}
+
+// LoggingMiddleware creates a middleware that logs message processing start and end.
+func LoggingMiddleware(logger *slog.Logger) message.HandlerMiddleware {
+	return func(h message.HandlerFunc) message.HandlerFunc {
+		return func(msg *message.Message) ([]*message.Message, error) {
+			start := time.Now()
+			topic := message.SubscribeTopicFromCtx(msg.Context())
+
+			logger.InfoContext(msg.Context(), "Processing message started", "topic", topic, "msg_id", msg.UUID)
+
+			msgs, err := h(msg)
+
+			duration := time.Since(start)
+
+			if err != nil {
+				logger.ErrorContext(msg.Context(), "Processing message failed",
+					"topic", topic,
+					"msg_id", msg.UUID,
+					"duration", duration,
+					"error", err,
+				)
+			} else {
+				logger.InfoContext(msg.Context(), "Processing message completed",
+					"topic", topic,
+					"msg_id", msg.UUID,
+					"duration", duration,
+				)
+			}
+
+			return msgs, err
+		}
+	}
+}
+
+// DeduplicationMiddleware creates a middleware that checks if a message has already been processed.
+// It uses the Message ID (UUID) as the uniqueness key.
+// for now not used
+func DeduplicationMiddleware(deduplicator deduplication.Deduplicator, ttl time.Duration, logger *slog.Logger) message.HandlerMiddleware {
+	return func(h message.HandlerFunc) message.HandlerFunc {
+		return func(msg *message.Message) ([]*message.Message, error) {
+			// Key: watermill:msg:<UUID>
+			// We can also use Metadata["unique_id"] if present, but Message ID is standard.
+			// Let's use Message ID.
+			unique, err := deduplicator.IsUnique(msg.Context(), msg.UUID, ttl)
+			if err != nil {
+				// If checking fails, what do we do?
+				// Option A: Fail (Retry) - safest for data, risk of loop if redis is down.
+				// Option B: Process anyway - risk of duplicate.
+				// Let's Fail (Retry) as Redis down is a system failure.
+				logger.ErrorContext(msg.Context(), "Deduplication check failed", "error", err)
+				return nil, err
+			}
+
+			if !unique {
+				logger.WarnContext(msg.Context(), "Message duplicate detected, skipping", "msg_id", msg.UUID)
+				// Ack the message (return nil error) without processing.
+				// If we want to drop it, we just return nil, nil.
+				return nil, nil
+			}
+
+			return h(msg)
 		}
 	}
 }

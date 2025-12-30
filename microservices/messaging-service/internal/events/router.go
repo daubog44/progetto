@@ -14,7 +14,7 @@ type EventRouter struct {
 	Subscriber message.Subscriber
 }
 
-func NewEventRouter(logger *slog.Logger, brokers string, client *handler.Client) (*EventRouter, error) {
+func NewEventRouter(logger *slog.Logger, brokers string, handler *handler.Handler) (*EventRouter, error) {
 	// 1. Subscriber
 	subscriber, err := watermillutil.NewKafkaSubscriber(brokers, "messaging-service", logger)
 	if err != nil {
@@ -26,9 +26,9 @@ func NewEventRouter(logger *slog.Logger, brokers string, client *handler.Client)
 	router, err := watermillutil.NewRouter(logger, watermillutil.RouterOptions{
 		CBName:      "messaging-consumer",
 		PoisonTopic: "dead_letters",
-		Publisher:   client.Publisher,
+		Publisher:   handler.Publisher,
 		SagaRoutes: map[string]watermillutil.SagaFailureHandler{
-			"user_created": client.HandleUserCreationFailure,
+			"user_created": handler.HandleUserCreationFailure,
 		},
 	})
 	if err != nil {
@@ -41,7 +41,7 @@ func NewEventRouter(logger *slog.Logger, brokers string, client *handler.Client)
 		"user_created_handler",
 		"user_created",
 		subscriber,
-		client.HandleUserCreated,
+		handler.HandleUserCreated,
 	)
 
 	return &EventRouter{

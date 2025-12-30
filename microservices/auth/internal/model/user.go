@@ -1,13 +1,7 @@
 package model
 
 import (
-	"gorm.io/gorm"
+	"github.com/username/progetto/shared/pkg/model"
 )
 
-type User struct {
-	gorm.Model
-	Username string `gorm:"uniqueIndex"`
-	Email    string `gorm:"uniqueIndex"`
-	Password string
-	Role     string `gorm:"default:'user'"`
-}
+type User = model.User

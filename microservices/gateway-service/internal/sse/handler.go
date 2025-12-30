@@ -2,13 +2,23 @@ package sse
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+	"github.com/username/progetto/shared/pkg/jwtutil"
+	"github.com/username/progetto/shared/pkg/presence"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Event struct {
@@ -17,13 +27,24 @@ type Event struct {
 }
 
 type Handler struct {
-	clients map[string]chan Event
-	lock    sync.RWMutex
+	clients    map[string]chan Event
+	lock       sync.RWMutex
+	rdb        *redis.Client
+	instanceID string
+	jwtSecret  []byte
 }
 
-func NewHandler() *Handler {
+func NewHandler(rdb *redis.Client, jwtSecret string) *Handler {
+	id := os.Getenv("HOSTNAME")
+	if id == "" {
+		id = uuid.New().String()
+	}
+
 	return &Handler{
-		clients: make(map[string]chan Event),
+		clients:    make(map[string]chan Event),
+		rdb:        rdb,
+		instanceID: id,
+		jwtSecret:  []byte(jwtSecret),
 	}
 }
 
@@ -47,18 +68,40 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	// 2. Auth (extract UserID from query or context if middleware set it)
-	// For simplicity, let's assume UserID is passed as query param `user_id` used for targeting
-	// In production -> extract from JWT in context
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusBadRequest)
+	// 2. Auth via JWT
+	tokenString := r.URL.Query().Get("token")
+	if tokenString == "" {
+		http.Error(w, "token required", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := jwtutil.ValidateToken(tokenString, h.jwtSecret)
+	if err != nil {
+		if errors.Is(err, jwtutil.ErrExpiredToken) {
+			slog.Warn("token expired", "error", err)
+			http.Error(w, "token expired", http.StatusUnauthorized)
+			return
+		}
+		slog.Error("failed to validate token", "error", err)
+		http.Error(w, "invalid token", http.StatusUnauthorized)
 		return
 	}
 
 	clientChan := make(chan Event, 10)
 	h.addClient(userID, clientChan)
-	defer h.removeClient(userID)
+
+	// Register online presence
+	if err := h.setPresence(r.Context(), userID, "online", nil); err != nil {
+		slog.Error("failed to register presence", "user_id", userID, "error", err)
+	}
+
+	defer func() {
+		h.removeClient(userID)
+		// Mark as offline on disconnect
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		h.setOffline(ctx, userID)
+	}()
 
 	// 3. Keep connection open
 	flusher, ok := w.(http.Flusher)
@@ -67,7 +110,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send initial ping/connection established
+	// Send initial ping
 	fmt.Fprintf(w, "event: connected\ndata: \"connected\"\n\n")
 	flusher.Flush()
 
@@ -84,6 +127,74 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// Keep-alive heartbeat
 			fmt.Fprintf(w, ": keep-alive\n\n")
 			flusher.Flush()
+
+			// Refresh presence heartbeat
+			go h.updateLastSeen(context.Background(), userID)
+		}
+	}
+}
+
+func (h *Handler) updateLastSeen(ctx context.Context, userID string) {
+	h.setPresence(ctx, userID, "online", nil)
+}
+
+func (h *Handler) setOffline(ctx context.Context, userID string) {
+	now := time.Now()
+	h.setPresence(ctx, userID, "offline", &now)
+}
+
+func (h *Handler) setPresence(ctx context.Context, userID string, status string, disconnectedAt *time.Time) error {
+	key := fmt.Sprintf("user_presence:%s", userID)
+
+	p := presence.UserPresence{
+		InstanceID:     h.instanceID,
+		Status:         status,
+		UpdatedAt:      time.Now(),
+		DisconnectedAt: disconnectedAt,
+	}
+
+	b, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+
+	return h.rdb.Set(ctx, key, b, 7*24*time.Hour).Err()
+}
+
+// SubscribeToRedis starts listening for events from Redis for this specific gateway instance
+func (h *Handler) SubscribeToRedis(ctx context.Context) error {
+	channel := fmt.Sprintf("gateway_events:%s", h.instanceID)
+	pubsub := h.rdb.Subscribe(ctx, channel)
+	defer pubsub.Close()
+
+	slog.Info("Subscribed to targeted Redis channel", "channel", channel)
+
+	ch := pubsub.Channel()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg := <-ch:
+			var sseEvent presence.TargetedEvent
+			if err := json.Unmarshal([]byte(msg.Payload), &sseEvent); err != nil {
+				slog.Error("failed to unmarshal redis event", "error", err)
+				continue
+			}
+
+			traceCtx := ctx
+			if sseEvent.TraceContext != nil {
+				// Extract Trace Context
+				carrier := propagation.MapCarrier(sseEvent.TraceContext)
+				traceCtx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+			}
+
+			// Start Span to link traces
+			tracer := otel.Tracer("gateway-service")
+			spanCtx, span := tracer.Start(traceCtx, "process_redis_event", trace.WithSpanKind(trace.SpanKindConsumer))
+			defer span.End()
+
+			// Targeted delivery: check if the user is actually on this instance
+			h.Broadcast(spanCtx, sseEvent.UserID, sseEvent.Type, sseEvent.Payload)
 		}
 	}
 }
