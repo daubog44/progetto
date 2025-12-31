@@ -39,7 +39,7 @@ func NewEventRouter(logger *slog.Logger, brokers string, h *handler.Notification
 	)
 
 	// Aggregator handlers
-	router.AddNoPublisherHandler(
+	router.AddConsumerHandler(
 		"aggregator_user_created",
 		"user_created",
 		subscriber,
@@ -48,7 +48,7 @@ func NewEventRouter(logger *slog.Logger, brokers string, h *handler.Notification
 
 	syncTopics := []string{"user_synced_post", "user_synced_social", "user_synced_messaging"}
 	for _, topic := range syncTopics {
-		router.AddNoPublisherHandler(
+		router.AddConsumerHandler(
 			fmt.Sprintf("aggregator_%s", topic),
 			topic,
 			subscriber,

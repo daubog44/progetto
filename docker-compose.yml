@@ -13,8 +13,6 @@ services:
         condition: service_healthy
       cassandra:
         condition: service_healthy
-      messaging-migration:
-        condition: service_completed_successfully
     environment:
       - OTEL_SERVICE_NAME=messaging-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
