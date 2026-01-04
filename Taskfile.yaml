@@ -1,47 +1,31 @@
-version: '3'
+version: "3"
+
+includes:
+  backend:
+    taskfile: ./backend/Taskfile.yaml
+    dir: ./backend
+    aliases: [bk]
 
 tasks:
-  up:
-    desc: Start infrastructure
+  frontend-dev:
+    aliases: [frontend]
+    desc: Start frontend development environment
     cmds:
-      - docker compose up -d
+      - cmd: cd frontend && npm run dev
 
-  down:
-    desc: Stop infrastructure
+  start-docs:
+    desc: Start documentation server
+    aliases: [docs]
     cmds:
-      - docker compose down
+      - cmd: cd frontend && npm run docs:dev
 
-  dev:
-    desc: Start Tilt development environment
-    cmds:
-      - tilt up
+  fullstack-dev:
+    aliases: [fullstack]
+    desc: Start fullstack development environment
+    deps: [bk:dev, docs, frontend]
 
-  proto:
-    desc: Generate protobuf code
-    dir: shared/proto
+  helper-dev:
+    aliases: [dev]
+    desc: abstract dev
     cmds:
-      - buf generate
-
-  test:
-    desc: Run tests for all services
-    cmds:
-      - go test -v ./test-service/...
-
-  load-test:
-    desc: Run K6 load test
-    cmds:
-      - ./scripts/run-load-test.sh
-
-  cleanup:
-    desc: Cleanup unused resources
-    cmds:
-      - ./scripts/docker-cleanup.sh
-    
-  clean-db:
-    desc: Remove all data from application databases (Cassandra, Mongo, Neo4j, Postgres). Requires sudo.
-    cmds:
-      - task: down
-      - cmd: echo "⚠️  Removing database data..."
-      - cmd: sudo rm -rf data/cassandra data/mongo data/neo4j data/postgres
-      - cmd: echo "✅ Database data removed."
-    
+      - cmd: go-task fullstack -p || task fullstack -p

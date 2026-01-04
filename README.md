@@ -78,10 +78,10 @@ Una volta avviato, accedi agli strumenti di gestione:
 
 La documentazione è stata unificata per semplicità:
 
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: Visione d'insieme, stack tecnologico e workflow (Sequence Diagrams).
-- **[DATA_MODELS.md](docs/DATA_MODELS.md)**: Schemi database attuali (Postgres, Mongo, Redis).
-- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)**: Guida operativa (Script, gRPC, Coding Standards).
-- **[ARCHITECTURAL_CHALLENGES.md](docs/architectural_challenges.md)**: Deep dive su sfide tecniche, notifiche Real-Time, migrazioni e ottimizzazioni.
+- **[ARCHITECTURE.md](backend/docs/ARCHITECTURE.md)**: Visione d'insieme, stack tecnologico e workflow (Sequence Diagrams).
+- **[DATA_MODELS.md](backend/docs/DATA_MODELS.md)**: Schemi database attuali (Postgres, Mongo, Redis).
+- **[DEVELOPMENT.md](backend/docs/DEVELOPMENT.md)**: Guida operativa (Script, gRPC, Coding Standards).
+- **[ARCHITECTURAL_CHALLENGES.md](backend/docs/architectural_challenges.md)**: Deep dive su sfide tecniche, notifiche Real-Time, migrazioni e ottimizzazioni.
 
 
 ---
