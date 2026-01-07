@@ -1,73 +1,63 @@
-# frontend
+# Frontend - Progetto Microservizi
 
-This template should help get you started developing with Vue 3 in Vite.
+Questo è il client frontend per il progetto a microservizi, sviluppato con **Vue 3** e **Vite**.
+Offre un'interfaccia moderna e reattiva per interagire con l'ecosistema di servizi backend (Auth, Social, Notifications, ecc.).
 
-## Recommended IDE Setup
+## 🛠️ Stack Tecnologico
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- **Framework**: Vue 3 (Composition API)
+- **Build Tool**: Vite
+- **Store**: Pinia (con Colada per data fetching avanzato)
+- **Routing**: Vue Router
+- **Styling**: TailwindCSS 4 + Shadcn UI
+- **Language**: TypeScript
 
-## Recommended Browser Setup
+## 📚 Librerie Notevoli
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+Il progetto fa uso di diverse librerie per garantire un'esperienza utente ricca e performante:
 
-## Type Support for `.vue` Imports in TS
+- **UI Components**: [Shadcn Vue](https://www.shadcn-vue.com/) + [TailwindCSS](https://tailwindcss.com/)
+- **Gestione Form**: [Vee-Validate](https://vee-validate.logaretm.com/v4/)
+- **Animazioni**: [Anime.js](https://animejs.com/) & `tw-animate-css`
+- **Loading Spinners**: [Epic Spinners](https://epic-spinners.vuestic.dev/)
+- **Notifiche**: Vue Toastification
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## 🚀 Setup & Sviluppo
 
-## Customize configuration
+### Prerequisiti
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- Node.js 20+
+- npm
 
-## Project Setup
+### Installazione Dipendenze
 
 ```sh
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### Avvio Server di Sviluppo
 
 ```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+### Build per Produzione
 
 ```sh
 npm run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+## 📖 Documentazione
+
+La documentazione completa del progetto (inclusi dettagli architetturali, database e data flows) è disponibile nella cartella `docs` e servita tramite **VitePress**.
+
+Per avviare la documentazione in locale:
 
 ```sh
-npm run test:unit
+npm run docs:dev
 ```
 
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
+## IDE Setup Raccomandato
 
-```sh
-# Install browsers for the first run
-npx playwright install
-
-# When testing on CI, must build the project first
-npm run build
-
-# Runs the end-to-end tests
-npm run test:e2e
-# Runs the tests only on Chromium
-npm run test:e2e -- --project=chromium
-# Runs the tests of a specific file
-npm run test:e2e -- tests/example.spec.ts
-# Runs the tests in debug mode
-npm run test:e2e -- --debug
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar).
+Disabilitare Vetur se installato.
