@@ -12,6 +12,7 @@ type Config struct {
 	SearchService        string
 	KafkaBrokers         string
 	RedisAddr            string
+	MongoURI             string
 	JWTSecret            string
 	OtelServiceName      string
 	OtelExporterEndpoint string
@@ -45,6 +46,9 @@ func Load() *Config {
 	}
 	if envJWT := os.Getenv("APP_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT
+	}
+	if envMongo := os.Getenv("MONGO_URI"); envMongo != "" {
+		cfg.MongoURI = envMongo
 	}
 	if val := os.Getenv("OTEL_SERVICE_NAME"); val != "" {
 		cfg.OtelServiceName = val

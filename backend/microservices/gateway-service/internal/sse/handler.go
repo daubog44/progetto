@@ -14,6 +14,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/username/progetto/gateway-service/internal/repository"
 	"github.com/username/progetto/shared/pkg/jwtutil"
 	"github.com/username/progetto/shared/pkg/presence"
 	"go.opentelemetry.io/otel"
@@ -30,11 +31,12 @@ type Handler struct {
 	clients    map[string]chan Event
 	lock       sync.RWMutex
 	rdb        *redis.Client
+	repo       *repository.UserActivityRepository
 	instanceID string
 	jwtSecret  []byte
 }
 
-func NewHandler(rdb *redis.Client, jwtSecret string) *Handler {
+func NewHandler(rdb *redis.Client, repo *repository.UserActivityRepository, jwtSecret string) *Handler {
 	id := os.Getenv("HOSTNAME")
 	if id == "" {
 		id = uuid.New().String()
@@ -43,6 +45,7 @@ func NewHandler(rdb *redis.Client, jwtSecret string) *Handler {
 	return &Handler{
 		clients:    make(map[string]chan Event),
 		rdb:        rdb,
+		repo:       repo,
 		instanceID: id,
 		jwtSecret:  []byte(jwtSecret),
 	}
@@ -90,17 +93,28 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	clientChan := make(chan Event, 10)
 	h.addClient(userID, clientChan)
 
-	// Register online presence
+	// Register online presence (Redis)
 	if err := h.setPresence(r.Context(), userID, "online", nil); err != nil {
 		slog.Error("failed to register presence", "user_id", userID, "error", err)
 	}
+	// Initial Persistent Save (Mongo)
+	go func() {
+		if err := h.repo.UpdateLastSeen(context.Background(), userID); err != nil {
+			slog.Error("failed to save last_seen", "user_id", userID, "error", err)
+		}
+	}()
 
 	defer func() {
 		h.removeClient(userID)
-		// Mark as offline on disconnect
+		// Mark as offline on disconnect (Redis)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		h.setOffline(ctx, userID)
+
+		// Final Persistent Save (Mongo)
+		if err := h.repo.UpdateLastSeen(context.Background(), userID); err != nil {
+			slog.Error("failed to save last_seen on disconnect", "user_id", userID, "error", err)
+		}
 	}()
 
 	// 3. Keep connection open
@@ -116,6 +130,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	notify := r.Context().Done()
 
+	// Throttling state for Mongo saves
+	lastSavedAt := time.Now()
+
 	for {
 		select {
 		case <-notify:
@@ -128,8 +145,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, ": keep-alive\n\n")
 			flusher.Flush()
 
-			// Refresh presence heartbeat
+			// Refresh presence heartbeat (Redis)
 			go h.updateLastSeen(context.Background(), userID)
+
+			// Throttled Save (Mongo) - Every 5 minutes
+			if time.Since(lastSavedAt) > 5*time.Minute {
+				go func() {
+					if err := h.repo.UpdateLastSeen(context.Background(), userID); err == nil {
+						// Only update lastSavedAt if successful? No, simpler to do it outside to avoid race or complex logic,
+						// but here we are in a goroutine.
+						// To rely on the loop variable 'lastSavedAt', we should update it in the main loop.
+					} else {
+						slog.Error("failed to periodic save last_seen", "user_id", userID, "error", err)
+					}
+				}()
+				// Mark as saved to reset timer
+				lastSavedAt = time.Now()
+			}
 		}
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/username/progetto/gateway-service/internal/api"
 	"github.com/username/progetto/gateway-service/internal/config"
 	"github.com/username/progetto/gateway-service/internal/events"
+	"github.com/username/progetto/gateway-service/internal/repository"
 	"github.com/username/progetto/gateway-service/internal/sse"
 	authv1 "github.com/username/progetto/proto/gen/go/auth/v1"
 	postv1 "github.com/username/progetto/proto/gen/go/post/v1"
@@ -27,6 +28,8 @@ import (
 	"github.com/username/progetto/shared/pkg/grpcutil"
 	"github.com/username/progetto/shared/pkg/observability"
 	"github.com/username/progetto/shared/pkg/watermillutil"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 )
 
@@ -46,6 +49,7 @@ type App struct {
 	authConn    *grpc.ClientConn
 	searchConn  *grpc.ClientConn
 	redisClient *redis_driver.Client
+	mongoClient *mongo.Client
 }
 
 func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
@@ -80,10 +84,21 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 	}
 	searchClient := searchv1.NewSearchServiceClient(searchConn)
 
-	// 4. SSE Handler
-	sseHandler := sse.NewHandler(rdb, cfg.JWTSecret)
+	// 4. MongoDB & Repository
+	mongoClient, err := mongo.Connect(context.Background(), options.Client().ApplyURI(cfg.MongoURI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to mongodb: %w", err)
+	}
+	// Verify connection
+	if err := mongoClient.Ping(context.Background(), nil); err != nil {
+		return nil, fmt.Errorf("failed to ping mongodb: %w", err)
+	}
+	userActivityRepo := repository.NewUserActivityRepository(mongoClient.Database("post-service")) // Shared DB
 
-	// 5. Watermill (Kafka)
+	// 5. SSE Handler
+	sseHandler := sse.NewHandler(rdb, userActivityRepo, cfg.JWTSecret)
+
+	// 6. Watermill (Kafka)
 	pub, err := watermillutil.NewKafkaPublisher(cfg.KafkaBrokers, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka publisher: %w", err)
@@ -101,7 +116,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		return nil, fmt.Errorf("failed to create watermill manager: %w", err)
 	}
 
-	// 6. Router & Huma
+	// 7. Router & Huma
 	router := chi.NewMux()
 
 	// Middlewares
@@ -156,6 +171,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 		authConn:         authConn,
 		searchConn:       searchConn,
 		redisClient:      rdb,
+		mongoClient:      mongoClient,
 	}, nil
 }
 
@@ -223,5 +239,8 @@ func (a *App) Close() {
 	}
 	if a.redisClient != nil {
 		a.redisClient.Close()
+	}
+	if a.mongoClient != nil {
+		a.mongoClient.Disconnect(context.Background())
 	}
 }

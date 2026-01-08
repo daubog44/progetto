@@ -107,23 +107,26 @@ sequenceDiagram
 - **Fase Asincrona (Real-time):** Invio notifica via SSE ai client connessi.
 
 ```mermaid
-flowchart TD
-    subgraph Sync_Phase [Fase Sincrona - Scrittura]
-        WA[User A] --> API
-        API -->|1. Persist| DB[(MongoDB)]
-        API -->|2. Safe Update| Cache[(Redis List)]
-        API -->|3. Publish Event| PubSub{Redis Pub/Sub}
-        API -.->|201 Created| WA
-    end
+sequenceDiagram
+    participant User as Utente A
+    participant API
+    participant DB as MongoDB (Data)
+    participant Redis as Redis (PubSub/List)
+    participant SSE as SSE Server
+    participant ClientB as Utente B
 
-    subgraph Async_Phase [Fase Asincrona - Distribuzione]
-        PubSub -->|4. Trigger| SSE[SSE Server]
-        Client_B -->|Connesso| SSE
-        SSE -->|5. Push JSON| Client_B
+    Note over User, Redis: Fase Sincrona (Write)
+    User->>API: 1. Invia Commento
+    par Parallel Write
+        API->>DB: 2. Persist Comment
+        API->>Redis: 3. LPUSHX (Safe Update Cache)
+        API->>Redis: 4. PUBLISH "NEW_COMMENT"
     end
+    API-->>User: 201 Created (OK)
 
-    note[Redis: LPUSHX (Push if exists)]
-    note -.-> Cache
+    Note over Redis, ClientB: Fase Asincrona (Real-time)
+    Redis-->>SSE: 5. Evento PubSub Trigger
+    SSE->>ClientB: 6. Push JSON (via SSE)
 ```
 
 ---
