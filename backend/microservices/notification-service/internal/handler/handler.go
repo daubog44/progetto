@@ -48,7 +48,7 @@ func (h *NotificationHandler) HandleUserCreationFailure(msg *message.Message) er
 		return nil
 	}
 
-	// Used explicitly for failure notifications
+	// Used explicitly for failure notifications but it is for the frontend
 	topic := "user_creation_failed"
 	channel := fmt.Sprintf("gateway_events:%s", instanceID)
 
