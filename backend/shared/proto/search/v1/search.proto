@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package search.v1;
+
+option go_package = "github.com/username/progetto/proto/gen/go/search/v1;searchv1";
+
+service SearchService {
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+}
+
+message SearchUsersRequest {
+  string query = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message SearchUsersResponse {
+  repeated UserResult users = 1;
+  int64 total = 2;
+}
+
+message UserResult {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+}

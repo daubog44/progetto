@@ -1,0 +1,44 @@
+bin/
+dist/
+node_modules/
+*.log
+.env
+.DS_Store
+proto/gen/
+auth-service/ent/*
+!auth-service/ent/schema
+!auth-service/ent/generate.go
+post-service/ent/*
+!post-service/ent/schema
+!post-service/ent/generate.go
+
+# Local Data
+data/
+renderer-data/
+renderer-data/*
+
+# IDEs
+.idea/
+.vscode/
+
+# Build Artifacts & Executables
+server
+migrate-tool
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+main
+
+# Specific Service Binaries (if built locally)
+microservices/auth/auth
+microservices/gateway-service/gateway-service
+microservices/messaging-service/messaging-service
+microservices/post-service/post-service
+microservices/mongo-service/mongo-service
+
+# Temporary
+tmp/
+.tmp/

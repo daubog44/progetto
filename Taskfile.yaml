@@ -1,0 +1,31 @@
+version: "3"
+
+includes:
+  backend:
+    taskfile: ./backend/Taskfile.yaml
+    dir: ./backend
+    aliases: [bk]
+
+tasks:
+  frontend-dev:
+    aliases: [frontend]
+    desc: Start frontend development environment
+    cmds:
+      - cmd: cd frontend && npm run dev
+
+  start-docs:
+    desc: Start documentation server
+    aliases: [docs]
+    cmds:
+      - cmd: cd frontend && npm run docs:dev
+
+  fullstack-dev:
+    aliases: [fullstack]
+    desc: Start fullstack development environment
+    deps: [bk:dev, docs, frontend]
+
+  helper-dev:
+    aliases: [dev]
+    desc: abstract dev
+    cmds:
+      - cmd: go-task fullstack -p || task fullstack -p

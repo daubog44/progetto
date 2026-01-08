@@ -1,0 +1,15 @@
+go 1.25.5
+
+use (
+	./microservices/auth
+	./microservices/gateway-service
+	./microservices/messaging-service
+	./microservices/notification-service
+	./microservices/post-service
+	./microservices/search-service
+	./microservices/social-service
+
+	./microservices/test-service
+	./shared/pkg
+	./shared/proto
+)
