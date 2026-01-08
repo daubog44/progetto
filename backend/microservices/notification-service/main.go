@@ -13,6 +13,7 @@ import (
 	"github.com/username/progetto/notification-service/internal/presencestore"
 	"github.com/username/progetto/shared/pkg/database/redis"
 	"github.com/username/progetto/shared/pkg/observability"
+	"github.com/username/progetto/shared/pkg/watermillutil"
 )
 
 func main() {
@@ -49,9 +50,18 @@ func main() {
 
 	// 5. Wiring
 	notifHandler := handler.NewNotificationHandler(rdb, store)
+	userHandler := handler.NewUserHandler(rdb, store)
 
-	// 6. Event Router
-	router, err := events.NewEventRouter(logger, cfg.KafkaBrokers, notifHandler)
+	// 6. Kafka Publisher
+	publisher, err := watermillutil.NewKafkaPublisher(cfg.KafkaBrokers, logger)
+	if err != nil {
+		slog.Error("failed to init kafka publisher", "error", err)
+		os.Exit(1)
+	}
+	defer publisher.Close()
+
+	// 7. Event Router
+	router, err := events.NewEventRouter(logger, cfg.KafkaBrokers, publisher, notifHandler, userHandler)
 	if err != nil {
 		slog.Error("failed to init event router", "error", err)
 		os.Exit(1)

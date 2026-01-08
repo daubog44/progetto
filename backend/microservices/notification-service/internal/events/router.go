@@ -13,9 +13,10 @@ import (
 type EventRouter struct {
 	Router     *message.Router
 	Subscriber message.Subscriber
+	Publisher  message.Publisher
 }
 
-func NewEventRouter(logger *slog.Logger, brokers string, h *handler.NotificationHandler) (*EventRouter, error) {
+func NewEventRouter(logger *slog.Logger, brokers string, publisher message.Publisher, notifHandler *handler.NotificationHandler, userHandler *handler.UserHandler) (*EventRouter, error) {
 	subscriber, err := watermillutil.NewKafkaSubscriber(brokers, "notification-service", logger)
 	if err != nil {
 		return nil, err
@@ -24,6 +25,10 @@ func NewEventRouter(logger *slog.Logger, brokers string, h *handler.Notification
 	router, err := watermillutil.NewRouter(logger, watermillutil.RouterOptions{
 		CBName:      "notification-events",
 		PoisonTopic: "dead_letters",
+		Publisher:   publisher,
+		SagaRoutes: map[string]watermillutil.SagaFailureHandler{
+			"user_created": userHandler.HandleFailure,
+		},
 	})
 	if err != nil {
 		subscriber.Close()
@@ -35,7 +40,7 @@ func NewEventRouter(logger *slog.Logger, brokers string, h *handler.Notification
 		"notifications_router",
 		"user_creation_failed",
 		subscriber,
-		h.HandleNotification,
+		notifHandler.HandleUserCreationFailure,
 	)
 
 	// Aggregator handlers
@@ -43,7 +48,7 @@ func NewEventRouter(logger *slog.Logger, brokers string, h *handler.Notification
 		"aggregator_user_created",
 		"user_created",
 		subscriber,
-		h.HandleUserCreated,
+		userHandler.HandleUserCreated,
 	)
 
 	syncTopics := []string{"user_synced_post", "user_synced_social", "user_synced_search"}
@@ -52,13 +57,14 @@ func NewEventRouter(logger *slog.Logger, brokers string, h *handler.Notification
 			fmt.Sprintf("aggregator_%s", topic),
 			topic,
 			subscriber,
-			h.HandleUserSynced,
+			userHandler.HandleUserSynced,
 		)
 	}
 
 	return &EventRouter{
 		Router:     router,
 		Subscriber: subscriber,
+		Publisher:  publisher,
 	}, nil
 }
 

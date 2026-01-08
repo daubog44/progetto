@@ -83,19 +83,6 @@ Gestisce grandi volumi di messaggi e dati time-series per i feed.
 
 ### Keyspace: `vibely` (Replication Factor: 1 in dev)
 
-### Table: `users` (Denormalizzata)
-
-Copia locale dati utente per join veloci in lettura messaggi.
-
-```cql
-CREATE TABLE users (
-    user_id text PRIMARY KEY,
-    email text,
-    username text,
-    created_at timestamp
-);
-```
-
 ### Table: `messages` (Design)
 
 Schema ottimizzato per recuperare la cronologia di una chat.

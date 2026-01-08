@@ -69,3 +69,40 @@ func (h *NotificationHandler) HandleUserCreated(msg *message.Message) error {
 	h.Logger.Info("user indexed and sync event published", "user_id", payload.UserID)
 	return nil
 }
+
+// HandleFailure constructs a compensation message for user creation failure.
+func (h *NotificationHandler) HandleFailure(err error, msg *message.Message) (string, *message.Message, error) {
+	// Try to get UserID from Metadata first (if passed), otherwise from Payload
+	userID := msg.Metadata.Get("user_id")
+	if userID == "" {
+		var payload struct {
+			UserID string `json:"user_id"`
+		}
+		// Best effort unmarshal
+		_ = json.Unmarshal(msg.Payload, &payload)
+		userID = payload.UserID
+	}
+
+	h.Logger.WarnContext(msg.Context(), "handling failure for user_created", "user_id", userID, "error", err)
+
+	failurePayload := struct {
+		UserID string `json:"user_id"`
+		Reason string `json:"reason"`
+		Source string `json:"source"`
+	}{
+		UserID: userID,
+		Reason: err.Error(),
+		Source: "search-service",
+	}
+
+	bytes, marshalErr := json.Marshal(failurePayload)
+	if marshalErr != nil {
+		return "", nil, marshalErr
+	}
+
+	failMsg := message.NewMessage(watermill.NewUUID(), bytes)
+	failMsg.Metadata.Set("user_id", userID)
+
+	// Return the topic 'user_creation_failed' and the message
+	return "user_creation_failed", failMsg, nil
+}

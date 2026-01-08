@@ -23,6 +23,9 @@ func NewRouter(logger *slog.Logger, pub message.Publisher, sub message.Subscribe
 		CBName:      "search-service",
 		PoisonTopic: "dead_letters",
 		Publisher:   pub,
+		SagaRoutes: map[string]watermillutil.SagaFailureHandler{
+			"user_created": h.HandleFailure,
+		},
 	})
 	if err != nil {
 		return nil, err
