@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import Login from './components/Login.vue'
 import { PiniaColadaDevtools } from '@pinia/colada-devtools'
 
 </script>
@@ -10,11 +10,11 @@ import { PiniaColadaDevtools } from '@pinia/colada-devtools'
     <img alt="Vue logo" class="logo" src="@/assets/logo1.png" width="125" height="125" />
 
     <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+      <Login msg="Welcome to Vibely!" />
 
       <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
+        <RouterLink to="/">Login</RouterLink>
+        <RouterLink to="/registration">Registration</RouterLink>
       </nav>
     </div>
   </header>

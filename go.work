@@ -1,0 +1,11 @@
+go 1.25.5
+
+use (
+	./microservices/gateway-service
+	./microservices/cassandra-service
+	./microservices/mongo-service
+	./microservices/neo4j-service
+	./microservices/test-service
+	./microservices/auth
+	./shared/proto
+)

@@ -13,12 +13,21 @@ Vibely mira a creare uno spazio dove gli appassionati di cultura possono connett
 - **Spazio Emergenti**: Vetrina per nuovi talenti, autori e cantanti.
 
 ### Punti di Forza Tecnici:
+<<<<<<< HEAD
 - **Resilienza**: Pattern avanzati (Circuit Breaker, Retry, Recovery) implementati via librerie condivise.
 - **Osservabilità Completa**: Stack LGTM (Loki, Grafana, Tempo, Mimir-compatible) con OpenTelemetry (oTel) e Alloy.
 - **Event-Driven**: Architettura reattiva basata su **Kafka** e **Watermill** (CQRS/Saga).
 - **Scalabilità**: Ogni servizio scala indipendentemente (Stateless).
 - **Polyglot Persistence**: Mongo, Postgres, Redis, Cassandra.
 - **Type-Safety**: gRPC/Protobuf per comunicazione inter-servizio.
+=======
+- **Scalabilità Orizzontale**: Ogni servizio scala indipendentemente.
+- **Polyglot Persistence**: Database specifico per ogni workload (Mongo, Cassandra, Neo4j).
+- **Hot-Reload**: Sviluppo fluido con **Tilt**.
+- **Type-Safety**: gRPC e **Buf v2** per contratti rigorosi tra servizi.
+- **Security First**: Immagini **Distroless** e architettura Zero Trust.
+- **Performance**: Elaborazione ultra-rapida con **Go** e database distribuiti.
+>>>>>>> 19e5d681f0be273a5b640989a1518d647d80f327
 
 ---
 
@@ -27,6 +36,7 @@ Vibely mira a creare uno spazio dove gli appassionati di cultura possono connett
 Il progetto è organizzato come un **monorepo**.
 
 ```text
+<<<<<<< HEAD
 ├── docs/                  # Documentazione
 ├── microservices/
 │   ├── auth/              # Gestione Utenti (Postgres + Redis + Watermill)
@@ -39,6 +49,20 @@ Il progetto è organizzato come un **monorepo**.
 ├── deploy/                # Configurazioni (Grafana, Loki, Tempo, Alloy)
 ├── docker-compose.yml     # Infrastruttura (Kafka, DB, GUI Tools, LGTM Stack)
 ├── Tiltfile               # Orchestrazione dev locale e hot-reload
+=======
+├── docs/
+│   ├── tech/              # Specifiche tecniche e visione (Vibely)
+│   └── tutorial/          # Guide all'architettura e workflow
+├── microservices/
+│   ├── mongo-service/     # Gestione profili e metadati opere (MongoDB)
+│   ├── cassandra-service/ # Feed, attività e messaggistica (Cassandra)
+│   ├── neo4j-service/     # Relazioni social e grafi di interesse (Neo4j)
+│   └── test-service/      # Integration tests
+├── shared/
+│   └── proto/             # Contratti gRPC (Buf v2)
+├── docker-compose.yml     # Infrastruttura (Kafka, DB, etc.)
+├── Tiltfile               # Orchestrazione dev locale
+>>>>>>> 19e5d681f0be273a5b640989a1518d647d80f327
 └── Taskfile.yaml          # Automazione
 ```
 
@@ -46,6 +70,7 @@ Il progetto è organizzato come un **monorepo**.
 
 ## 🛠 Iniziare lo Sviluppo
 
+<<<<<<< HEAD
 ### 1. Requisiti
 - Docker & Docker Compose
 - Go 1.22+
@@ -83,9 +108,45 @@ La documentazione è stata unificata per semplicità:
 - **[DEVELOPMENT.md](backend/docs/DEVELOPMENT.md)**: Guida operativa (Script, gRPC, Coding Standards).
 - **[ARCHITECTURAL_CHALLENGES.md](backend/docs/architectural_challenges.md)**: Deep dive su sfide tecniche, notifiche Real-Time, migrazioni e ottimizzazioni.
 
+=======
+### 1. Setup Rapido
+Esegui l'infrastruttura di base:
+```bash
+go-task up
+```
+
+### 2. Sviluppo con Tilt
+Avvia i microservizi con hot-reload:
+```bash
+go-task dev
+```
+🔗 Dashboard Tilt: [http://localhost:10350](http://localhost:10350)
+
+---
+
+## 📚 Documentazione Tecnica
+
+Consulta le nostre guide dettagliate per comprendere il funzionamento interno:
+
+### ⚙️ Architettura & Strategia
+- [Visione e Obiettivi](docs/tech/project.md) - Descrizione generale di Vibely.
+- [Workflow & Tracing](docs/tech/workflows.md) - Il viaggio delle richieste tra i servizi.
+- [Sicurezza & Performance](docs/tech/security-performance-resilience.md) - Distroless, Go e Resilienza.
+- [Analisi Architetturale](docs/tech/architecture-analysis.md) - Deep dive nei componenti.
+- [Database Schema](docs/tech/database-schema.md) - Modelli dati Polyglot.
+
+### 📖 Tutorial & Workflow
+- [Aggiunta Microservizio](docs/tutorial/add-microservice.md) - Guida e script di automazione.
+- [Workflow gRPC & Buf v2](docs/tutorial/grpc-workflow.md) - Generazione codice dai contratti.
+- [Event-Driven Architecture](docs/tutorial/event-driven-architecture.md) - Integrazione gRPC + Kafka.
+- [Frontend Workflow](docs/tutorial/frontend-workflow.md) - Sviluppo UI e integrazione API.
+>>>>>>> 19e5d681f0be273a5b640989a1518d647d80f327
 
 ---
 Realizzato con ⚡ e ❤️ per Vibely.
 ```
+<<<<<<< HEAD
 
 //TODO: logica di caching
+=======
+>>>>>>> 19e5d681f0be273a5b640989a1518d647d80f327
