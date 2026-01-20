@@ -1,0 +1,129 @@
+services:
+  # --- Databases ---
+
+  # Cassandra
+  cassandra:
+    image: cassandra:4.1
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: "MicroCluster"
+      CASSANDRA_DC: "datacenter1"
+    volumes:
+      - cassandradata:/var/lib/cassandra
+    networks:
+      - microservices-net
+    healthcheck:
+      test: [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # MongoDB
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongodata:/data/db
+    networks:
+      - microservices-net
+
+  # Neo4j
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j
+    ports:
+      - "7474:7474" # HTTP
+      - "7687:7687" # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/password
+    volumes:
+      - neo4jdata:/data
+    networks:
+      - microservices-net
+
+  # --- Microservices (Orchestrated by Tilt) ---
+
+  mongo-service:
+    image: mongo-service
+    build:
+      context: .
+      dockerfile: microservices/mongo-service/Dockerfile
+      target: dev
+    container_name: mongo-service
+    depends_on:
+      - mongodb
+    environment:
+      - APP_MONGO_URI=mongodb://mongodb:27017
+    networks:
+      - microservices-net
+
+  cassandra-service:
+    image: cassandra-service
+    build:
+      context: .
+      dockerfile: microservices/cassandra-service/Dockerfile
+      target: dev
+    container_name: cassandra-service
+    depends_on:
+      - cassandra
+    environment:
+      APP_CASSANDRA_HOST: "cassandra"
+    networks:
+      - microservices-net
+
+  neo4j-service:
+    image: neo4j-service
+    build:
+      context: .
+      dockerfile: microservices/neo4j-service/Dockerfile
+      target: dev
+    container_name: neo4j-service
+    ports:
+      - "50053:50051"
+    depends_on:
+      - neo4j
+    environment:
+      - APP_NEO4J_URI=bolt://neo4j:7687
+      - APP_NEO4J_USER=neo4j
+      - APP_NEO4J_PASSWORD=password
+    networks:
+      - microservices-net
+
+  gateway-service:
+    image: gateway-service
+    build:
+      context: .
+      dockerfile: microservices/gateway-service/Dockerfile
+      target: dev
+    container_name: gateway-service
+    networks:
+      - microservices-net
+
+  auth:
+    image: auth
+    build:
+      context: .
+      dockerfile: microservices/auth/Dockerfile
+      target: dev
+    container_name: auth
+
+    networks:
+      - microservices-net
+
+volumes:
+  cassandradata:
+  mongodata:
+  neo4jdata:
+
+
+networks:
+  microservices-net:
+
+

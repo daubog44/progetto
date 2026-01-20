@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 version: "3"
 
 includes:
@@ -29,3 +30,33 @@ tasks:
     desc: abstract dev
     cmds:
       - cmd: go-task fullstack -p || task fullstack -p
+=======
+version: '3'
+
+tasks:
+  up:
+    desc: Start infrastructure
+    cmds:
+      - docker compose up -d
+
+  down:
+    desc: Stop infrastructure
+    cmds:
+      - docker compose down
+
+  dev:
+    desc: Start Tilt development environment
+    cmds:
+      - tilt up
+
+  proto:
+    desc: Generate protobuf code
+    dir: shared/proto
+    cmds:
+      - buf generate
+
+  test:
+    desc: Run tests for all services
+    cmds:
+      - go test -v ./test-service/...
+>>>>>>> 19e5d681f0be273a5b640989a1518d647d80f327
