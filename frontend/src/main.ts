@@ -2,8 +2,7 @@ import './assets/main.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import { PiniaColada
- } from '@pinia/colada'
+import { PiniaColada} from '@pinia/colada'
  import { PiniaColadaDelay } from '@pinia/colada-plugin-delay'
  import { PiniaColadaRetry } from '@pinia/colada-plugin-retry'
 import Toast, { type PluginOptions } from "vue-toastification";

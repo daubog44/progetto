@@ -13,6 +13,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
+
 	redis_driver "github.com/redis/go-redis/v9"
 	"github.com/riandyrn/otelchi"
 	"github.com/username/progetto/gateway-service/internal/api"
@@ -104,16 +106,57 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 	// 6. Router & Huma
 	router := chi.NewMux()
 
-	// Middlewares
+	// --- (1) CORS TOP-LEVEL ---
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"}, // Vite
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"}, // sblocca header vari (dev)
+		ExposedHeaders:   []string{},    // aggiungi se serve
+		AllowCredentials: false,         // se usi cookie -> true + origin specifico
+		MaxAge:           300,
+	}))
+	// ---------------------------
+
+	// --- (2) SHORT-CIRCUIT OPTIONS (prima di tutto il resto) ---
+
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodOptions {
+				logger.Info("preflight",
+					"path", r.URL.Path,
+					"origin", r.Header.Get("Origin"),
+					"acrm", r.Header.Get("Access-Control-Request-Method"),
+					"acrh", r.Header.Get("Access-Control-Request-Headers"),
+				)
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	// -----------------------------------------------------------
+
+	// --- (3) CHI MethodNotAllowed: intercetta ogni 405 (incluse OPTIONS) ---
+	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			// gli header CORS sono già stati aggiunti dal middleware precedente
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+	})
+	// -----------------------------------------------------------------------
+
+	// Middlewares esistenti
 	router.Use(otelchi.Middleware("gateway-service", otelchi.WithChiRoutes(router)))
 	router.Use(observability.MiddlewareMetrics)
 	router.Use(api.NewLoggingMiddleware(logger))
 	router.Use(api.NewDeduplicationMiddleware(dedup, 10*time.Minute))
-	router.Use(api.NewAdminMiddleware(cfg.JWTSecret))
+	router.Use(api.NewAdminMiddleware(cfg.JWTSecret)) // NB: se serve, skippa OPTIONS e /auth/* al suo interno
 
 	// SSE Route
 	router.Get("/events", sseHandler.ServeHTTP)
 
+	// Huma API
 	humaAPI := humachi.New(router, huma.DefaultConfig("Gateway API", "1.0.0"))
 
 	// Register Routes
@@ -121,7 +164,7 @@ func New(cfg *config.Config, logger *slog.Logger) (*App, error) {
 	api.RegisterAuthRoutes(humaAPI, authClient, logger)
 	api.RegisterSearchRoutes(humaAPI, searchClient, logger)
 
-	// Ping Route
+	// Ping
 	huma.Register(humaAPI, huma.Operation{
 		OperationID: "health-check",
 		Method:      http.MethodGet,
