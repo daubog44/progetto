@@ -6,15 +6,16 @@ import { PiniaColadaDevtools } from '@pinia/colada-devtools'
 </script>
 
 <template>
+
   <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo1.png" width="125" height="125" />
+    <img alt="Vue logo" class="logo" src="@/assets/logo1.png" width="180" height="180" />
 
     <div class="wrapper">
-      <Login msg="Welcome to Vibely!" />
+      <Login msg="Benvenuto su Vibely!" />
 
       <nav>
         <RouterLink to="/">Login</RouterLink>
-        <RouterLink to="/registration">Registration</RouterLink>
+        <RouterLink to="/registration">Registrati</RouterLink>
       </nav>
     </div>
   </header>

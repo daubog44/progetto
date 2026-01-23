@@ -7,10 +7,11 @@
         margin-left: 120px;
         cursor: pointer;
         padding: 2% 5%;
+        color: black;
     }
 
     button:hover {
-        background-color: lightgrey;
+        background-color: rgb(124, 45, 107);
 
     }
 
@@ -22,7 +23,7 @@
 <template>
 
     <div class="greetings">
-        <h1 class="green">Registration to Vibely</h1>
+        <h1 class="green">Registrati a Vibely</h1>
     </div>
     <div>
     
@@ -36,7 +37,7 @@
                 <input type="password" id="password" name="password" required>
             </div>
             <div >
-                <button type="submit">Register</button>
+                <button type="submit">Registrati</button>
             </div>
         </form>
     </div>

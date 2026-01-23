@@ -1,21 +1,29 @@
-<script setup lang="ts">
+0<script setup lang="ts">
 defineProps<{
   msg: string
 }>()
 </script>
 
 <template>
+  <div class="page-background">
+
   <div class="greetings">
-    <h1 class="green">{{ msg }}</h1>
-    <h3>
-      welcome to Vibely
-    </h3>
+    <h1 class="purple">{{ msg }}</h1>
+
+    </div>
   </div>
 </template>
 
 <style scoped>
+  body {
+    background-image: url('@/assets/sfondo.jpg');
+    background-size: cover;
+    height: 100vh;
+  }
+  
 h1 {
   font-weight: 500;
+  color: black;
   font-size: 2.6rem;
   position: relative;
   top: -10px;
