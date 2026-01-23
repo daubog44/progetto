@@ -43,8 +43,7 @@ export async function registerUser(payload: RegisterPayload): Promise<RegisterRe
   }
 
   // Risposta OK tipizzata
-  const data = (await res.json()) as RegisterResponse;
-  return data;
+  return (await res.json()) as RegisterResponse;
 }
 ``
  
