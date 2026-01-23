@@ -1,57 +1,58 @@
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { useMutation } from "@pinia/colada";
-import { registerUser } from "@/api/auth";
-// Stato del form
-const username = ref("");
-const password = ref("");
-const email = ref("");
+    import { ref } from "vue";
+    import { useMutation } from "@pinia/colada";
+    import { registerUser } from "@/api/auth";
+    // Stato del form
+    const username = ref("");
+    const password = ref("");
+    const email = ref("");
 
-// Mutation per registrare l’utente
-const {
-  mutate: createUser,
-  isLoading,
-  data: response,
-  error
-} = useMutation({
-  mutation: registerUser,               // funzione API
-  onSuccess: (data) => {
-    console.log("Registrazione completata:", data);
-  }
-});
+    // Mutation per registrare l’utente
+    const {
+    mutate: createUser,
+    isLoading,
+    data: response,
+    error
+    } = useMutation({
+    mutation: registerUser,               // funzione API
+    onSuccess: (data) => {
+        console.log("Registrazione completata:", data);
+    }
+    });
 
-// Submit del form
-function submitForm() {
-  createUser({
-    email: email.value,
-    password: password.value,
-    username: username.value
+    // Submit del form
+    function submitForm() {
+    createUser({
+        email: email.value,
+        password: password.value,
+        username: username.value
 
-  });
-}
+    });
+    }
 </script>
 
 <style>
-button {
-    margin-left: 120px;
-    cursor: pointer;
-    padding: 2% 5%;
-}
+    button {
+        margin-left: 120px;
+        cursor: pointer;
+        padding: 2% 5%;
+        color: black;
+    }
 
-button:hover {
-    background-color: lightgrey;
-}
+    button:hover {
+        background-color: rgb(124, 45, 107);
+    }   
 
-.label-size {
-    padding: 2%;
-}
+    .label-size {
+        padding: 2%;
+    }
 </style>
 
 <template>
 
     <div class="greetings">
-        <h1 class="green">Registration to Vibely</h1>
+        <h1 class="green">Registrati a Vibely</h1>
     </div>
 
     <div>
@@ -71,10 +72,8 @@ button:hover {
                 <input v-model="password" type="password" id="password" name="password" required />
             </div>
 
-            <div>
-                <button type="submit" :disabled="isLoading">
-                    {{ isLoading ? "Registering..." : "Register" }}
-                </button>
+            <div >
+                <button type="submit">Registrati</button>
             </div>
 
             <!-- Messaggi feedback -->
