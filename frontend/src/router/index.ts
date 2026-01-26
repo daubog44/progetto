@@ -4,6 +4,18 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 const routes = [
+
+  
+ // Redirect dinamico all'avvio
+    {
+      path: "/",
+      redirect: () => {
+        const auth = useAuthStore();
+        if (!auth.accessToken) auth.hydrateFromStorage(); // se usi localStorage
+        return auth.isAuthenticated ? "/home" : "/login";
+      },
+    },
+
   // Layout pubblico (per login e register)
   {
     path: "/",
@@ -11,6 +23,7 @@ const routes = [
     children: [
       { path: "login", component: () => import("@/views/LoginView.vue") },
       { path: "register", component: () => import("@/views/RegistrationView.vue") },
+      { path: "logout", component: () => import("@/views/LogoutView.vue") },
     ],
   },
 

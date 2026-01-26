@@ -1,6 +1,3 @@
-<script>
-import Login_form from './components/Login_form.vue';
-</script>
 <!-- src/layouts/PublicLayout.vue -->
 <template>
   <header>
@@ -16,9 +13,7 @@ import Login_form from './components/Login_form.vue';
     </div>
   </header>
 
-  <div>
-    <Login_form />
-  </div>
+ 
   <RouterView />
 </template>
 <style>
