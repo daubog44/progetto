@@ -52,6 +52,7 @@
     </div>
 </template>
 <style scoped>
+
 /* Sfondo della pagina */
 .page-wrapper {
     min-height: 100vh;

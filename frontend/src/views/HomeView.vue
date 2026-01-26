@@ -7,3 +7,4 @@ import Home from "@/components/home.vue"
     <Home />
   </main>
 </template>
+
