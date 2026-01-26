@@ -1,5 +1,5 @@
 <template>
-    <div class="dashboard-books">
+    <div class="dashboard-filmTV">
         <div class="main-card">
             <header class="card-header">
                 <h1 class="welcome-text">FILM E SERIE TV</h1>
@@ -14,7 +14,6 @@
                 <aside class="side-menu">
                     <nav>
                         <ul>
-                            <li>BIOGRAFIA E AUTOBIOGRAFIA</li>
                             <li>STORICO</li>
                             <li>GIALLO</li>
                             <li>THRILLER</li>
@@ -42,7 +41,7 @@
             <label> Community dove hai scritto recentemente:</label>
        </div>
        <main class="book-row">
-        <h3>FILM E SERIE TV VISIT</h3>
+        <h3>FILM E SERIE TV VISTE</h3>
         <div class="book-placeholder">
             <input type="button" placeholder="vedi altro"/>
         </div>
@@ -62,7 +61,7 @@
   
 }
 
-/* Header: Libri e Cerca */
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -98,7 +97,6 @@
 }
 
 
-/* Menu laterale bianco arrotondato */
 .side-menu {
   background: white;
   border-radius: 25px;
