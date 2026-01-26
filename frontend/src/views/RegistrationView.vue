@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import RegistrationForm from '../components/Registration_form.vue'
+import RegistrationForm from "@/components/Registration_form.vue"
 </script>
 
 <template>
