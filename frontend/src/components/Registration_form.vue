@@ -5,34 +5,35 @@ import { useRouter } from "vue-router";
 import { useMutation } from "@pinia/colada";
 import { registerUser } from "@/api/auth";
 import type { RegisterPayload, RegisterResponse } from "@/api/types";
+import { useAuthStore } from "@/stores/auth";
 
-// Router
 const router = useRouter();
+const auth = useAuthStore();
 
-// Form state
 const username = ref("");
 const password = ref("");
 const email = ref("");
 
-// UI state
 const isSubmitting = ref(false);
 const isRedirecting = ref(false);
 const errorMsg = ref<string | null>(null);
 
-// Delay in ms before redirect
 const REDIRECT_DELAY_MS = 1500;
 
-// Mutation (TIPI CORRETTI + arrow function per forzare l'input/output)
-const {
-  mutate: createUser,
-  data: response,
-  error, // opzionale: utile per debug
-} = useMutation<RegisterResponse, RegisterPayload>({
-  // 👇 Forza esplicitamente l'input (RegisterPayload) ed evita inferenze sbagliate
+const { mutate: createUser, data: response } = useMutation<RegisterResponse, RegisterPayload>({
   mutation: (vars: RegisterPayload) => registerUser(vars),
-  onSuccess: async () => {
+  onSuccess: async (data) => {
+    // 1) salva token (persistente)
+    auth.setTokens({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+      user_id: data.user_id
+    });
+
+    // 2) overlay e redirect
     isRedirecting.value = true;
-    await new Promise((resolve) => setTimeout(resolve, REDIRECT_DELAY_MS));
+    await new Promise((r) => setTimeout(r, REDIRECT_DELAY_MS));
     router.push("/home");
   },
   onError: (err) => {
@@ -40,10 +41,9 @@ const {
   },
   onSettled: () => {
     isSubmitting.value = false;
-  },
+  }
 });
 
-// Submit
 function submitForm() {
   errorMsg.value = null;
   isSubmitting.value = true;
@@ -51,7 +51,7 @@ function submitForm() {
   createUser({
     email: email.value,
     password: password.value,
-    username: username.value,
+    username: username.value
   });
 }
 </script>
@@ -87,7 +87,6 @@ function submitForm() {
     </p>
   </form>
 
-  <!-- Overlay -->
   <div v-if="isRedirecting" class="overlay">
     <div class="spinner"></div>
     <p>Accesso in corso…</p>
@@ -101,34 +100,11 @@ button {
   padding: 2% 5%;
   color: black;
 }
-button:hover {
-  background-color: rgb(124, 45, 107);
-}
-.label-size {
-  padding: 2%;
-}
-
-/* overlay */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  display: grid;
-  place-items: center;
-  z-index: 999;
-}
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 6px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+button:hover { background-color: rgb(124, 45, 107); }
+.label-size { padding: 2%; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); color: #fff;
+  display: grid; place-items: center; z-index: 999; }
+.spinner { width: 50px; height: 50px; border: 6px solid rgba(255,255,255,.3);
+  border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

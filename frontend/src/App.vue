@@ -15,7 +15,7 @@ import { PiniaColadaDevtools } from '@pinia/colada-devtools'
 
       <nav>
         <RouterLink to="/">Login</RouterLink>
-        <RouterLink to="/registration">Registrati</RouterLink>
+        <RouterLink to="/register">Registrati</RouterLink>
       </nav>
     </div>
   </header>
@@ -25,6 +25,12 @@ import { PiniaColadaDevtools } from '@pinia/colada-devtools'
 </template>
 
 <style scoped>
+
+body {
+  background-image: url('@/assets/background.jpg');
+  background-size: cover;
+  height: 100vh;
+}
 header {
   line-height: 1.5;
   max-height: 100vh;

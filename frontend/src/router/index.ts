@@ -1,42 +1,31 @@
-import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router'
-import LoginView from '../views/LoginView.vue'
+
+// src/router/index.ts
+import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+
+const routes = [
+  { path: "/login", component: () => import("@/views/LoginView.vue") },
+  { path: "/register", component: () => import("@/views/RegistrationView.vue") },
+  { path: "/home", component: () => import("@/views/HomeView.vue"), meta: { requiresAuth: true } },
+  { path: "/", redirect: "/home" }
+];
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-      name: 'login',
-      component: LoginView,
-    },
-    {
-      path: '/registration',
-      name: 'registration',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/RegistrationView.vue'),
-    },
-    {
-      path: '/Home',
-      name: 'home',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/HomeView.vue'),
-    },
-  ],
-})
+  history: createWebHistory(),
+  routes
+});
 
+router.beforeEach((to) => {
+  const auth = useAuthStore();
+  // se ricarichi direttamente /home, assicuriamoci di aver idratato
+  if (!auth.accessToken) auth.hydrateFromStorage();
 
-// Guard globale: redirect /docs → VitePress dev server
-router.beforeEach((to: RouteLocationNormalized) => {
-  if (to.path.startsWith('/docs')) {
-    // Redirect esterno (apre nuova tab o sostituisce)
-    window.location.href = import.meta.env.VITE_URL_DOCS + to.path.slice(5)  // mantieni subpath
-    return false  // blocca navigazione Vue
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { path: "/login", query: { redirect: to.fullPath } };
   }
-})
+  if ((to.path === "/login" || to.path === "/register") && auth.isAuthenticated) {
+    return "/home";
+  }
+});
 
-
-export default router
+export default router;
