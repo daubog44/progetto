@@ -13,11 +13,6 @@
     </div>
   </header>
 
-<<<<<<< HEAD
-
-=======
- 
->>>>>>> origin/Raul
   <RouterView />
 </template>
 <style>

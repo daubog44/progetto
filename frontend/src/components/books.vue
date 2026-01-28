@@ -55,7 +55,7 @@
 </template>
 <style scoped>
 .page-wrapper {
-    min-height: 100vh;
+      min-height: 100vh;
     margin: 0 auto;
     padding: 20px;
   background-color: #f8efff; 
