@@ -13,11 +13,6 @@
     </div>
   </header>
 
-<<<<<<< HEAD
-
-=======
- 
->>>>>>> origin/Raul
   <RouterView />
 </template>
 <style>
@@ -44,6 +39,7 @@ nav a.router-link-exact-active {
 
 nav a.router-link-exact-active:hover {
   background-color: transparent;
+  color: black;
 }
 
 nav a {
@@ -55,6 +51,10 @@ nav a {
 nav a:first-of-type {
   border: 0;
 }
+
+.purple{
+    color: black;
+  }
 
 @media (min-width: 1024px) {
   header {
