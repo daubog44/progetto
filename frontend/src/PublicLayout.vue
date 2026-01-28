@@ -7,8 +7,8 @@ import Login_form from './components/Login_form.vue';
     <img alt="Vue logo" class="logo" src="@/assets/logo1.png" width="180" height="180" />
     <div class="wrapper">
 <div class="greetings">
-        <h1 class="purple">Benvenuti su Vibelt!</h1>
-        <h3>Accedi o registrati per continuare</h3>
+        <h1 class="purple">Benvenuti su Vibely!</h1>
+        <h3 class="purple">Accedi o registrati per continuare</h3>
 </div>      <nav>
         <RouterLink to="/login">Login</RouterLink>
         <RouterLink to="/register">Registrati</RouterLink>
@@ -16,9 +16,7 @@ import Login_form from './components/Login_form.vue';
     </div>
   </header>
 
-  <div>
-    <Login_form />
-  </div>
+
   <RouterView />
 </template>
 <style>
@@ -81,6 +79,9 @@ nav a:first-of-type {
 
     padding: 1rem 0;
     margin-top: 1rem;
+  }
+  .purple{
+    color: black;
   }
 }
 </style>

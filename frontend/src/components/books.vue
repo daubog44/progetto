@@ -59,6 +59,7 @@
     margin: 0 auto;
     padding: 20px;
   background-color: #f8efff; 
+  background-size: cover;
   
 }
 

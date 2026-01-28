@@ -21,8 +21,8 @@
         </div>
 
         <div class="info-box">
-          <p v-if="activeTab === 'trama'">Il testo della trama va qui...</p>
-          <p v-else>Le recensioni degli utenti vanno qui...</p>
+          <p v-if="activeTab === 'trama'">trama</p>
+          <p v-else>recensioni</p>
         </div>
 
         <div class="chat-actions">

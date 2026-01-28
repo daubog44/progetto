@@ -63,17 +63,17 @@ function submitForm() {
 
   <form @submit.prevent="submitForm">
     <div class="label-size">
-      <label>Username:</label>
+      <label class="info">Username:</label>
       <input v-model="username" required />
     </div>
 
     <div class="label-size">
-      <label>Email:</label>
+      <label class="info">Email:</label>
       <input v-model="email" type="email" required />
     </div>
 
     <div class="label-size">
-      <label>Password:</label>
+      <label class="info">Password:</label>
       <input v-model="password" type="password" required />
     </div>
 
@@ -101,10 +101,11 @@ button {
   color: black;
 }
 button:hover { background-color: rgb(124, 45, 107); }
-.label-size { padding: 2%; }
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); color: #fff;
+.info {color: black;}
+.label-size { padding: 2%; color: #000000; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); color: #000000;
   display: grid; place-items: center; z-index: 999; }
-.spinner { width: 50px; height: 50px; border: 6px solid rgba(255,255,255,.3);
-  border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+.spinner { width: 50px; height: 50px; border: 6px solid rgba(0, 0, 0, 0.3);
+  border-top-color: #000000; border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

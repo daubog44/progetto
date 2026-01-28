@@ -36,12 +36,14 @@ h3 {
 .greetings h1,
 .greetings h3 {
   text-align: center;
+  color: black;
 }
 
 @media (min-width: 1024px) {
   .greetings h1,
   .greetings h3 {
     text-align: left;
+    color: black;
   }
 }
 </style>
