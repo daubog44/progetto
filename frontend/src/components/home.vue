@@ -1,3 +1,16 @@
+
+<script lang="ts">
+import { useRouter } from "vue-router";
+export default {
+  setup() {
+    const router = useRouter();
+    return {
+      onLogoutClick: () => router.push("/logout"),
+    };
+  },
+};
+</script>
+
 <template>
     <div class="page-wrapper">
       <router-view />
@@ -41,6 +54,9 @@
             </div>
              <div class="sidebar-icons">
             <button class="icon-btn">🗂️</button>
+        </div>
+        <div class="sidebar-icons">
+          <button  @click="onLogoutClick">➜]</button>
         </div>
         <div class="community-box">
             <label> Community dove hai scritto recentemente:</label>
@@ -166,7 +182,5 @@ gap: 15px;
 padding-right: 5px;
 size: 30px;
 }
-
-
-
 </style>
+
