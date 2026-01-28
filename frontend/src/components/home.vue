@@ -28,9 +28,9 @@ export default {
                 <aside class="side-menu">
                     <nav>
                         <ul>
-                            <li>LIBRI</li>
-                            <li>FILM E SERIE TV</li>
-                            <li>FILM</li>
+                            <li><a href="/books">LIBRI</a></li>
+                            <li><a href="/filmsTV">FILM E SERIE TV</a></li>
+                            <li><a href="/music">MUSICA</a></li>
                         </ul>
                     </nav>
                 </aside>
