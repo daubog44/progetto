@@ -8,10 +8,15 @@ export default defineComponent({
   components: { NavBar },  // ⬅️ REGISTRAZIONE NECESSARIA
   setup() {
     const router = useRouter();
-    const onLogoutClick = () => router.push("/logout");
-    return { onLogoutClick };
+    const onClickRedirect = (string: string) => {
+      const route = `/${string}`;
+      router.push(route); 
+    };
+
+    return { onClickRedirect };
   },
 });
+
 </script>
 
 <template>

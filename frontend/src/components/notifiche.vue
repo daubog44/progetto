@@ -34,7 +34,6 @@ const markAsRead = (id) => {
     <div class="notifications-card">
       <header class="header">
         <div class="title-section">
-          <h1>Notifiche</h1>
           <span class="badge">{{ notifications.filter(n => !n.read).length }}</span>
         </div>
         <button @click="markAllRead" class="btn-text">
