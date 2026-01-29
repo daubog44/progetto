@@ -84,7 +84,7 @@ function submitForm() {
     </button>
 
     <p v-if="errorMsg" style="color: red">
-      Errore: {{ errorMsg }}
+      Errore: "Email o password errati."
     </p>
     <p v-if="response && !isRedirecting" style="color: green">
       Accesso effettuato! Reindirizzamento...
