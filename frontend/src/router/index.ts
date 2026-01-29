@@ -37,6 +37,7 @@ const routes = [
       { path: "Onebook", component: () => import("@/views/OnebookView.vue") },
       { path: "books", component: () => import("@/views/booksView.vue") },
       { path: "filmsTV", component: () => import("@/views/filmTVView.vue") },
+      { path: "notifiche", component: () => import("@/views/notificheView.vue") },
 
       // opzionale: default child per quando vai su "/"
       { path: "", redirect: "/home" },
