@@ -1,15 +1,5 @@
 <template>
     <div class="dashboard-filmTV">
-        <div class="main-card">
-            <header class="card-header">
-                <h1 class="welcome-text">FILM E SERIE TV</h1>
-                <Div class="search-bar">
-                    <span class="iconic-search">🔍</span>
-                <input type="text" placeholder="cerca..."/>
-                </Div>
-    <div class="top-icons"><button class="icon-btn">🔔</button>
-            </div>
-            </header>
              <div class="card-body">
                 <aside class="side-menu">
                     <nav>
@@ -31,12 +21,6 @@
                     </nav>
                 </aside>
                  <aside class="right-section">
-        <div class="sidebar-icons">
-            <button class="icon-btn">👤</button>
-            </div>
-             <div class="sidebar-icons">
-            <button class="icon-btn">🗂️</button>
-        </div>
         <div class="community-box">
             <label> Community dove hai scritto recentemente:</label>
        </div>
@@ -50,53 +34,8 @@
     </aside>
         </div>
     </div>
-    </div>
 </template>
 <style scoped>
-.page-wrapper {
-    min-height: 100vh;
-    margin: 0 auto;
-    padding: 20px;
-  background-color: #f8efff; 
-  
-}
-
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-}
-.search-bar{
-    background-color: white;
-    display: flex;
-    align-items: center;
-    padding: 8px 15px;
-    border-radius: 15px;
-    width: 100%;
-    max-width: 300px;
-}
-.search-bar input{
-    border: none;
-    background: transparent;
-    margin-left: 10px;
-    width: 100%;
-    outline: none;
-    font-size: 0.9rem;
-    color: #ccc;
-}
-.search-bar input::placeholder{
-    color: #ccc;
-}
-
-.welcome-text {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #000;
-}
-
-
 .side-menu {
   background: white;
   border-radius: 25px;
