@@ -40,6 +40,7 @@ const routes = [
       { path: "notifiche", component: () => import("@/views/notificheView.vue") },
       { path: "user", component: () => import("@/views/userView.vue") },  
       { path: "generi", component: () => import("@/views/generiView.vue") },
+       { path: "music", component: () => import("@/views/musicView.vue") },
 
       // opzionale: default child per quando vai su "/"
       { path: "", redirect: "/home" },

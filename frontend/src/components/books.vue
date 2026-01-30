@@ -5,20 +5,20 @@
                 <aside class="side-menu">
                     <nav>
                       <ul>
-                            <li button>BIOGRAFIA E AUTOBIOGRAFIA</li button>
-                            <li>ROMANZO STORICO</li>
-                            <li>GIALLO</li>
-                            <li>THRILLER</li>
-                            <li>AVVENTURA E AZIONE</li>
-                            <li>FANTASCIENZA</li>
-                            <li>FANTASY</li>
-                            <li>HORROR</li>
-                            <li>YOUNG ADULT</li>
-                            <li>ROMANCE</li>
-                            <li>DARK ROMANCE</li>
-                            <li>UMORISTICO</li>
-                            <li>FILOSOFICO</li>
-                            <li>EPICI</li>
+                            <li><RouterLink to="/generi">BIOGRAFIA E AUTOBIOGRAFIA</RouterLink></li>
+                            <li><RouterLink to="/generi">ROMANZO STORICO</RouterLink></li>
+                            <li><RouterLink to="/generi">GIALLO</RouterLink></li>
+                            <li><RouterLink to="/generi">THRILLER</RouterLink></li>
+                            <li><RouterLink to="/generi">AVVENTURA E AZIONE</RouterLink></li>
+                            <li><RouterLink to="/generi">FANTASCIENZA</RouterLink></li>
+                            <li><RouterLink to="/generi">FANTASY</RouterLink></li>
+                            <li><RouterLink to="/generi">HORROR</RouterLink></li>
+                            <li><RouterLink to="/generi">YOUNG ADULT</RouterLink></li>
+                            <li><RouterLink to="/generi">ROMANCE</RouterLink></li>
+                            <li><RouterLink to="/generi">DARK ROMANCE</RouterLink></li>
+                            <li><RouterLink to="/generi">UMORISTICO</RouterLink></li>
+                            <li><RouterLink to="/generi">FILOSOFICO</RouterLink></li>
+                            <li><RouterLink to="/generi">EPICI</RouterLink></li>
                         </ul>
                     </nav>
                 </aside>

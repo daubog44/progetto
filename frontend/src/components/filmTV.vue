@@ -4,34 +4,23 @@
                 <aside class="side-menu">
                     <nav>
                         <ul>
-                            <li>STORICO</li>
-                            <li>GIALLO</li>
-                            <li>THRILLER</li>
-                            <li>AVVENTURA</li>
-                            <li>FANTASCIENZA</li>
-                            <li>FANTASY</li>
-                            <li>HORROR</li>
-                            <li>ROMANTICI</li>
-                            <li>ANIME</li>
-                            <li>DRAMA</li>
-                            <li>UMORISTICO</li>
-                            <li>AZIONE</li>
-                            <li>NUOVI</li>
+                            <li><RouterLink to="/generi">STORICO</RouterLink></li>
+                            <li><RouterLink to="/generi">GIALLO</RouterLink></li>
+                            <li><RouterLink to="/generi">THRILLER</RouterLink></li>
+                            <li><RouterLink to="/generi">AVVENTURA</RouterLink></li>
+                            <li><RouterLink to="/generi">FANTASCIENZA</RouterLink></li>
+                            <li><RouterLink to="/generi">FANTASY</RouterLink></li>
+                            <li><RouterLink to="/generi">HORROR</RouterLink></li>
+                            <li><RouterLink to="/generi">ROMANTICI</RouterLink></li>
+                            <li><RouterLink to="/generi">ANIME</RouterLink></li>
+                            <li><RouterLink to="/generi">DRAMA</RouterLink></li>
+                            <li><RouterLink to="/generi">UMORISTICO</RouterLink></li>
+                            <li><RouterLink to="/generi">AZIONE</RouterLink></li>
+                            <li><RouterLink to="/generi">NUOVI</RouterLink></li>
                         </ul>
                     </nav>
                 </aside>
-                 <aside class="right-section">
-        <div class="community-box">
-            <label> Community dove hai scritto recentemente:</label>
-       </div>
-       <main class="book-row">
-        <h3>FILM E SERIE TV VISTE</h3>
-        <div class="book-placeholder">
-            <input type="button" placeholder="vedi altro"/>
-        </div>
-       </main>
-  
-    </aside>
+                 
         </div>
     </div>
 </template>
@@ -80,41 +69,6 @@ size: 30px;
   font-weight: auto;
   font-size: 0.9rem;
   letter-spacing: 1px;
-}
-
-/* Layout del corpo */
-.card-body {
-  display: flex;
-  gap: 40px;
-}
-
-/* Statistiche */
-.stats-section {
-  flex-grow: 1;
-}
-
-.stat-item {
-  margin-bottom: 30px;
-}
-
-.stat-item h2 {
-  font-size: 2.5rem;
-  margin: 0;
-  color: #000;
-}
-
-.stat-item label {
-  font-size: 0.7rem;
-  font-weight: bold;
-  color: #000000;
-}
-.book-row{
-   background: white;
-  border-radius: 25px;
-  padding: 40px 20px;
-  width: 200px;
-  text-align: center;
-  color: #000;
 }
 
 </style>
