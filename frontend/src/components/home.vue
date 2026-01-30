@@ -1,17 +1,21 @@
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, ref } from "vue";
 import { useRouter } from "vue-router";
 import NavBar from "@/components/template/NavBar.vue";
 
+
 export default defineComponent({
   name: "HomePage",        // opzionale ma utile
-  components: { NavBar },  // ⬅️ REGISTRAZIONE NECESSARIA
+  components: { NavBar, },  // ⬅️ REGISTRAZIONE NECESSARIA
   setup() {
     const router = useRouter();
     const onLogoutClick = () => router.push("/logout");
     return { onLogoutClick };
   },
+  
+
+
 });
 </script>
 

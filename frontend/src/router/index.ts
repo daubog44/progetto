@@ -41,6 +41,7 @@ const routes = [
       { path: "user", component: () => import("@/views/userView.vue") },  
       { path: "generi", component: () => import("@/views/generiView.vue") },
        { path: "music", component: () => import("@/views/musicView.vue") },
+       { path: "post", component: () => import("@/views/postView.vue") },
 
       // opzionale: default child per quando vai su "/"
       { path: "", redirect: "/home" },
