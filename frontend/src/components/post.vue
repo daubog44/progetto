@@ -45,7 +45,7 @@ const toggleLike = () => {
 <style scoped>
 .post-card {
   background: white;
-  border-radius: 20px; /* Arrotondato come il tuo menu */
+  border-radius: 20px; 
   margin-bottom: 30px;
   border: 1px solid #eee;
   overflow: hidden;
