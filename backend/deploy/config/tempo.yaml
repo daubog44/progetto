@@ -23,12 +23,13 @@ ingester:
   max_block_bytes: 1000000
   max_block_duration: 5m
 
-compactor:
-  compaction:
-    compaction_window: 1h
-    max_block_bytes: 100000000
-    block_retention: 1h
-    compacted_block_retention: 10m
+# compactor removed to avoid parsing error in v2.x
+# compactor:
+#   compaction:
+#     compaction_window: 1h
+#     max_block_bytes: 100000000
+#     block_retention: 1h
+#     compacted_block_retention: 10m
 
 storage:
   trace:
@@ -44,9 +45,9 @@ storage:
 
 overrides:
   metrics_generator_processors:
-    - 'service-graphs'
-    - 'span-metrics'
-    - 'local-blocks'
+    - "service-graphs"
+    - "span-metrics"
+    - "local-blocks"
 
 metrics_generator:
   registry:

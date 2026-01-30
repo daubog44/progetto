@@ -83,7 +83,7 @@ func (h *NotificationHandler) HandleFailure(err error, msg *message.Message) (st
 		userID = payload.UserID
 	}
 
-	h.Logger.WarnContext(msg.Context(), "handling failure for user_created", "user_id", userID, "error", err)
+	h.Logger.ErrorContext(msg.Context(), "handling failure for user_created", "user_id", userID, "error", err)
 
 	failurePayload := struct {
 		UserID string `json:"user_id"`
