@@ -77,17 +77,17 @@ const status = ref('lista');
   gap: 40px;
 }
 
-/* Copertina Libro */
-.book-cover {
+.book-cover{
   background-color: #7b52ff;
-  aspect-ratio: 3/4;
+  aspect-ratio: 2/3;
   border-radius: 15px;
   display: flex;
   justify-content: center;
-  align-items: center;
-  color: white;
+  align-items: flex-start;
   font-weight: bold;
   margin-bottom: 15px;
+  flex-direction: row;
+  gap: 20px;
   max-width: 250px;
   padding: 20px;
 }
@@ -98,6 +98,7 @@ const status = ref('lista');
   gap: 10px;
   margin-bottom: 15px;
   color: #000000;
+   flex: 1;
 }
 
 .tabs button {

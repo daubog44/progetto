@@ -5,7 +5,7 @@
                 <aside class="side-menu">
                     <nav>
                       <ul>
-                            <li>BIOGRAFIA E AUTOBIOGRAFIA</li>
+                            <li button>BIOGRAFIA E AUTOBIOGRAFIA</li button>
                             <li>ROMANZO STORICO</li>
                             <li>GIALLO</li>
                             <li>THRILLER</li>
@@ -23,15 +23,7 @@
                     </nav>
                 </aside>
                  <aside class="right-section">
-        <div class="community-box">
-            <label> Community dove hai scritto recentemente:</label>
-       </div>
-       <main class="book-row">
-        <h3>Le tue letture</h3>
-        <div class="book-placeholder">
-            <input type="button" placeholder="vedi altro"/>
-        </div>
-       </main>
+       
   
     </aside>
         </div>
@@ -47,14 +39,6 @@
   text-align: center;
   color: #000;
 }
-.community-box {
-  background: white;
-  padding: 15px;
-  border-radius: 15px;
-  margin-top: 50px;
-  font-size: 0.7rem;
-  color: #000;
-}
 .sidebar-icons{
 display: flex;
 flex-direction: column;
@@ -63,14 +47,6 @@ transform: scale(1.1);
 gap: 15px;
 padding-right: 5px;
 size: 30px;
-}
-.side-menu {
-  background: white;
-  border-radius: 25px;
-  padding: 40px 20px;
-  width: 200px;
-  text-align: center;
-  color: #000;
 }
 
 .side-menu ul {

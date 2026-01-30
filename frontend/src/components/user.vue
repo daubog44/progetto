@@ -1,170 +1,166 @@
 <template>
-  <div class="main-container">
-    <div class="card-wrapper">
+  <div class="vibely-page">
+    <div class="content-card">
       
-      <aside class="sidebar">
-        <h2>COMMUNITY</h2>
-        <div class="toggle-container">
-          <button class="btn-toggle active">PUBBLICO</button>
-          <button class="btn-toggle">PRIVATO</button>
+      <section class="col-left">
+        <h1 class="brand-title">COMMUNITY</h1>
+        <div class="toggle-bar">
+          <button class="btn active">PUBBLICO</button>
+          <button class="btn">PRIVATO</button>
         </div>
-      </aside>
+      </section>
 
-      <main class="profile-section">
-        <div class="profile-header">
-          <div class="avatar-container">
-            <div class="avatar-circle">FOTO</div>
-            <span class="username">*USERNAME*</span>
+      <section class="col-right">
+        <div class="header-profile">
+          <div class="user-box">
+            <div class="circle-avatar">FOTO</div>
+            <p class="user-name">*USERNAME*</p>
           </div>
           
-          <div class="stats-container">
-            <div class="stat-item">
-              <span class="stat-value">0</span>
-              <span class="stat-label">POST</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">0</span>
-              <span class="stat-label">FOLLOWER</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">0</span>
-              <span class="stat-label">SEGUITI</span>
-            </div>
+          <div class="stats-box">
+            <div class="s-item"><b>0</b><span>POST</span></div>
+            <div class="s-item"><b>0</b><span>FOLLOWER</span></div>
+            <div class="s-item"><b>0</b><span>SEGUITI</span></div>
           </div>
         </div>
-      </main>
 
-        <main class="stats-section">
-          <div class="stat-item">
-            <h2>0</h2>
-            <label>LIBRI LETTI</label>
+        <div class="data-list">
+          <div class="data-item">
+            <div class="info"><b>0</b><p>LIBRI LETTI</p></div>
+            <button class="action">VEDI I LIBRI LETTI</button>
           </div>
-          <div class="stat-item">
-            <h2>00h</h2>
-            <label>FILM E SERIE TV VISTE</label>
+          <div class="data-item">
+            <div class="info"><b>00h</b><p>FILM E SERIE TV VISTE</p></div>
+            <button class="action">VEDI FILM/ SERIE TV VISTE</button>
           </div>
-          <div class="stat-item">
-            <h2>0</h2>
-            <label>PLAYLIST SALVATE</label>
+          <div class="data-item">
+            <div class="info"><b>0</b><p> BRANI SALVATI</p></div>
+            <button class="action">VEDI BRANI SALVATI</button>
           </div>
-        </main>
+        </div>
+      </section>
 
     </div>
   </div>
 </template>
 <style scoped>
 
-/* Pannello Sinistro */
-.left-panel {
-  flex: 1;
+
+.content-card {
+
+  display: flex; /* Forza le due colonne affiancate */
+  padding: 60px;
+  gap: 50px; /* Spazio tra colonna sinistra e destra */
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
 }
 
-.title {
-  font-size: 24px;
-  margin-bottom: 20px;
-  color: #000000;
-}
-
-.toggle-group {
-  display: inline-flex;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 5px;
-  border-radius: 30px;
-}
-
-.btn-toggle {
-  border: none;
-  padding: 8px 20px;
+/* Gestione Colonne */
+.col-left {
+  flex: 0 0 250px; /* Larghezza fissa per la sinistra */
+   background: white;
   border-radius: 25px;
-  cursor: pointer;
-  background: transparent;
-  font-weight: bold;
-}
-
-.btn-toggle.active {
-  background-color: #595959;
-  color: white;
-}
-
-/* Pannello Destro */
-.right-panel {
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-}
-
-.profile-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 60px;
-}
-
-.avatar {
-  width: 80px;
-  height: 80px;
-  background-color: #9292e7;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: white;
-  margin-bottom: 5px;
-}
-
-.username {
-  font-size: 12px;
-  font-weight: bold;
-  display: block;
+  padding: 40px 20px;
+  width: 200px;
   text-align: center;
-}
-
-.stats {
-  display: flex;
-  gap: 30px;
-  text-align: center;
-}
-
-.num {
-  display: block;
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.stat span:not(.num) {
-  font-size: 10px;
-  color: #000000;
-}
-/* Statistiche */
-.stats-section {
-  flex-grow: 1;
-}
-
-.stat-item {
-  margin-bottom: 30px;
-}
-
-.stat-item h2 {
-  font-size: 2.5rem;
-  margin: 0;
   color: #000;
 }
 
-.stat-item label {
-  font-size: 0.7rem;
+.col-right {
+  flex: 1; /* La destra prende tutto lo spazio rimanente */
+   background: white;
+  border-radius: 25px;
+  padding: 40px 20px;
+  width: 200px;
+  text-align: center;
+  color: #000;
+}
+
+/* Dettagli Sinistra */
+.brand-title {
+  font-size: 28px;
+  margin-bottom: 25px;
   font-weight: bold;
-  color: #000000;
 }
 
+.toggle-bar {
+  padding: 5px;
+  border-radius: 50px;
+  display: inline-flex;
+}
 
-.pill-button {
-  background-color: rgba(255,255,255,0.5);
+.btn {
   border: none;
-  padding: 10px;
-  width: 180px;
-  border-radius: 20px;
-  color: #666;
-  font-size: 10px;
+  background: none;
+  padding: 10px 20px;
+  border-radius: 50px;
   cursor: pointer;
+  font-weight: bold;
 }
+
+.btn.active {
+  background-color: #5d5d81;
+  color: white;
+}
+
+/* Dettagli Destra (Profilo) */
+.header-profile {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 80px;
+}
+
+.circle-avatar {
+  width: 90px;
+  height: 90px;
+  background-color: #8a8aab;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.user-name {
+  font-size: 14px;
+  text-align: center;
+  font-weight: bold;
+  color: black;
+}
+
+.stats-box {
+  display: flex;
+  gap: 40px;
+  text-align: center;
+}
+
+.stats-box b { font-size: 20px; display: block; }
+.stats-box span { font-size: 11px; color: #555; }
+
+/* Liste Dati */
+.data-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.info { text-align: center; flex: 1; }
+.info b { font-size: 22px; display: block; }
+.info p { font-size: 12px; font-weight: 800; margin: 0; }
+
+.action {
+  background-color: rgba(255,255,255,0.6);
+  border: none;
+  width: 200px;
+  padding: 12px;
+  border-radius: 50px;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.action:hover { background-color: #fff; }
 </style>

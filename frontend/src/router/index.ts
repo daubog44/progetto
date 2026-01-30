@@ -38,7 +38,8 @@ const routes = [
       { path: "books", component: () => import("@/views/booksView.vue") },
       { path: "filmsTV", component: () => import("@/views/filmTVView.vue") },
       { path: "notifiche", component: () => import("@/views/notificheView.vue") },
-      { path: "user", component: () => import("@/views/userView.vue") },
+      { path: "user", component: () => import("@/views/userView.vue") },  
+      { path: "generi", component: () => import("@/views/generiView.vue") },
 
       // opzionale: default child per quando vai su "/"
       { path: "", redirect: "/home" },
