@@ -28,26 +28,9 @@ export default defineComponent({
           </nav>
         </aside>
 
-        <main class="stats-section">
-          <div class="stat-item">
-            <h2>0</h2>
-            <label>LIBRI LETTI</label>
-          </div>
-          <div class="stat-item">
-            <h2>00h</h2>
-            <label>FILM E SERIE TV VISTE</label>
-          </div>
-          <div class="stat-item">
-            <h2>0</h2>
-            <label>PLAYLIST SALVATE</label>
-          </div>
-        </main>
+       
 
-        <aside class="right-section">
-          <div class="community-box">
-            <label>Community dove hai scritto recentemente:</label>
-          </div>
-        </aside>
+      
       </div>
 </template>
 <style scoped>
@@ -80,34 +63,5 @@ export default defineComponent({
   gap: 40px;
 }
 
-/* Statistiche */
-.stats-section {
-  flex-grow: 1;
-}
 
-.stat-item {
-  margin-bottom: 30px;
-}
-
-.stat-item h2 {
-  font-size: 2.5rem;
-  margin: 0;
-  color: #000;
-}
-
-.stat-item label {
-  font-size: 0.7rem;
-  font-weight: bold;
-  color: #000000;
-}
-
-/* Box Community */
-.community-box {
-  background: white;
-  padding: 15px;
-  border-radius: 15px;
-  margin-top: 50px;
-  font-size: 0.7rem;
-  color: #000;
-}
 </style>

@@ -66,6 +66,9 @@ const status = ref('lista');
   border-radius: 20px;
   padding: 10px 20px;
 }
+.status-options{
+  color: #000000;
+}
 
 /* Griglia contenuto */
 .content-grid {
@@ -77,7 +80,7 @@ const status = ref('lista');
 /* Copertina Libro */
 .book-cover {
   background-color: #7b52ff;
-  aspect-ratio: 2/3;
+  aspect-ratio: 3/4;
   border-radius: 15px;
   display: flex;
   justify-content: center;
@@ -85,6 +88,8 @@ const status = ref('lista');
   color: white;
   font-weight: bold;
   margin-bottom: 15px;
+  max-width: 250px;
+  padding: 20px;
 }
 
 /* Tabs */
@@ -92,6 +97,7 @@ const status = ref('lista');
   display: flex;
   gap: 10px;
   margin-bottom: 15px;
+  color: #000000;
 }
 
 .tabs button {
@@ -116,6 +122,7 @@ const status = ref('lista');
   border-radius: 20px;
   height: 150px;
   padding: 20px;
+  color: #000000;
 }
 
 /* Footer Chat */
@@ -131,10 +138,11 @@ const status = ref('lista');
   font-weight: 800;
   font-size: 1.1rem;
   cursor: pointer;
-  color: #333;
+  color: #000000;
 }
 
 .chat-btn:hover {
   color: #7b52ff;
 }
+
 </style>
