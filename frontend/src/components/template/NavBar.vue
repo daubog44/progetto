@@ -21,7 +21,7 @@ function onClickRedirect(string: string) {
 
     <div class="top-icons">
       <button class="icon-btn" type="button" @click="onClickRedirect('notifiche')">🔔</button>
-      <button class="icon-btn" type="button">👤</button>
+      <button class="icon-btn" type="button" @click="onClickRedirect('user')">👤</button>
       <button class="icon-btn" type="button">🗂️</button>
 
       <!-- bottone logout -->

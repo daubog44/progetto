@@ -1,5 +1,4 @@
 <template>
-  <div class="vibely-page">
     <div class="content-card">
       
       <section class="col-left">
@@ -41,15 +40,21 @@
       </section>
 
     </div>
-  </div>
 </template>
-<style scoped>
+<style >
+
+.data-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
 
 .content-card {
 
   display: flex; /* Forza le due colonne affiancate */
   padding: 60px;
+  background-color: #f8efff; 
   gap: 50px; /* Spazio tra colonna sinistra e destra */
   box-shadow: 0 10px 40px rgba(0,0,0,0.1);
 }
@@ -105,7 +110,7 @@
 /* Dettagli Destra (Profilo) */
 .header-profile {
   display: flex;
-  justify-content: space-between;
+  justify-content: space-evenly;
   align-items: flex-start;
   margin-bottom: 80px;
 }
@@ -135,8 +140,8 @@
   text-align: center;
 }
 
-.stats-box b { font-size: 20px; display: block; }
-.stats-box span { font-size: 11px; color: #555; }
+.stats-box b { font-size: 40px; display: block; }
+.stats-box span { font-size: 22px; color: #555; }
 
 /* Liste Dati */
 .data-item {
@@ -147,8 +152,8 @@
 }
 
 .info { text-align: center; flex: 1; }
-.info b { font-size: 22px; display: block; }
-.info p { font-size: 12px; font-weight: 800; margin: 0; }
+.info b { font-size: 28px; display: block; }
+.info p { font-size: 16px; font-weight: 800; margin: 0; }
 
 .action {
   background-color: rgba(255,255,255,0.6);
